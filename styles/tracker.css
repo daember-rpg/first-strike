@@ -124,16 +124,21 @@
   padding: 12px 0 4px;
 }
 
-/* Pill buttons - Begin/End encounter. Same shape language as the rest
-   of the Embermark suite (Triad's action chips, Kronos's topbar pill):
-   a bordered glass pill that fills with gold on hover rather than a
-   flat text link. */
-.fs-control--begin,
-.fs-control--end {
+/* Begin/End encounter - plain text, no pill chrome. The bordered-pill
+   version rendered a stray glow/ring around the icon, which turned out
+   to be the base .fs-control rule's fixed 22x22 circle (meant for the
+   bare icon buttons below) clamping this text+icon button down to that
+   same tiny box, further down the stylesheet and so winning the
+   cascade. `span.fs-control--begin`/`span.fs-control--end` (element +
+   class) outrank plain `.fs-control` (class only) regardless of source
+   order, so this box sizing can't get re-clamped again by accident. */
+span.fs-control--begin,
+span.fs-control--end {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   width: max-content;
+  height: auto;
   max-width: 100%;
   white-space: nowrap;
   font-family: var(--fs-font-display);
@@ -142,12 +147,8 @@
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 5px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--fs-gold-line);
-  background: var(--fs-gold-soft);
   color: var(--fs-gold-light);
-  transition: background 150ms var(--fs-ease), color 150ms var(--fs-ease), box-shadow 150ms var(--fs-ease);
+  transition: color 150ms var(--fs-ease);
 }
 
 .fs-control--begin i,
@@ -156,11 +157,9 @@
   flex-shrink: 0;
 }
 
-.fs-control--begin:hover,
-.fs-control--end:hover {
-  background: var(--fs-gold);
-  color: var(--fs-on-gold);
-  box-shadow: 0 0 0 1px var(--fs-gold-line), 0 4px 14px rgba(212, 178, 90, 0.25);
+span.fs-control--begin:hover,
+span.fs-control--end:hover {
+  color: var(--fs-ink);
 }
 
 .fs-list {
@@ -435,12 +434,6 @@
 .fs-control:hover {
   color: var(--fs-gold-light);
   background: var(--fs-fill);
-}
-
-.fs-control--end {
-  width: auto;
-  height: auto;
-  border-radius: 999px;
 }
 
 /* Upcoming: the 1-2 combatants who'd act next, a much quieter cue
