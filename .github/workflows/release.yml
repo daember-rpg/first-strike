@@ -1,0 +1,54 @@
+name: Release
+
+# Publishes a GitHub Release (module.json + module.zip) whenever module.json's
+# version changes on main. Runs entirely on GitHub's own infrastructure using
+# the Actions-provided token, which can create releases regardless of who or
+# what pushed the commit - there's no manual "draft a release" step after this.
+on:
+  push:
+    branches: [main]
+    paths:
+      - module.json
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version from module.json
+        id: version
+        run: echo "version=$(jq -r .version module.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version was already released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build module.zip
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          mkdir -p dist/first-strike
+          cp -r module.json scripts styles templates README.md dist/first-strike/
+          (cd dist && zip -r ../module.zip first-strike)
+
+      - name: Create release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          files: |
+            module.json
+            module.zip
