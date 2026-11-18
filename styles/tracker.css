@@ -1,0 +1,617 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap");
+
+/* ==========================================================================
+   First Strike — Embermark dialect: smoked glass, parchment ink, a gold
+   thread for whoever's turn it is, ember for the dying, moss for the living.
+   Shares its token names and values with Triad/Kronos on purpose - when
+   First Strike is docked into Triad's Initiative tab (see .is-docked below)
+   it switches to reading Triad's *actual* tokens instead of its own copies,
+   so it blends in rather than merely matching by coincidence.
+   ========================================================================== */
+
+.first-strike-tracker {
+  /* Surfaces */
+  --fs-glass: rgba(20, 17, 15, 0.88);
+  --fs-hair: rgba(255, 255, 255, 0.08);
+  --fs-hair-2: rgba(255, 255, 255, 0.14);
+  --fs-fill: rgba(255, 255, 255, 0.045);
+
+  /* Ink */
+  --fs-ink: #efe3c8;
+  --fs-ink-dim: rgba(239, 227, 200, 0.62);
+  --fs-ink-faint: rgba(239, 227, 200, 0.36);
+  --fs-on-gold: #1c1712;
+
+  /* Accents */
+  --fs-gold: #d4b25a;
+  --fs-gold-light: #ecd28a;
+  --fs-gold-soft: rgba(212, 178, 90, 0.15);
+  --fs-gold-line: rgba(212, 178, 90, 0.45);
+  --fs-ember: #c8553d;
+  --fs-ember-light: #e07a5f;
+  --fs-moss: #8fae5c;
+  --fs-moss-light: #a8c478;
+  --fs-sky: #8fb0c9;
+
+  --fs-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  --fs-radius: 12px;
+  --fs-radius-sm: 6px;
+  --fs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --fs-font-display: "Cinzel", "Palatino Linotype", serif;
+  --fs-font-body: "Spectral", "Georgia", serif;
+
+  position: fixed;
+  left: 10px;
+  bottom: 90px;
+  width: 250px;
+  z-index: 70;
+  pointer-events: auto;
+  font-family: var(--fs-font-body);
+  font-variant-numeric: lining-nums;
+}
+
+.fs-panel {
+  background: var(--fs-glass);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--fs-hair);
+  border-top: 1px solid var(--fs-gold-line);
+  border-radius: var(--fs-radius);
+  padding: 9px 11px 7px;
+  box-shadow: var(--fs-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--fs-ink);
+  font-size: 12px;
+}
+
+.first-strike-tracker__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  user-select: none;
+}
+
+.first-strike-tracker__toggle:active {
+  cursor: grabbing;
+}
+
+.first-strike-tracker__round {
+  font-family: var(--fs-font-display);
+  color: var(--fs-gold-light);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.first-strike-tracker__count {
+  color: var(--fs-ink-faint);
+  font-size: 10px;
+  flex: 1;
+}
+
+.first-strike-tracker__mode-toggle {
+  color: var(--fs-ink-faint);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 150ms var(--fs-ease);
+}
+
+.first-strike-tracker__mode-toggle:hover {
+  color: var(--fs-gold-light);
+}
+
+.first-strike-tracker__caret {
+  color: var(--fs-ink-faint);
+  font-size: 10px;
+  transition: color 150ms var(--fs-ease);
+}
+
+.first-strike-tracker__toggle:hover .first-strike-tracker__caret {
+  color: var(--fs-gold-light);
+}
+
+/* Setup state - shown to the GM only, before an encounter has begun.
+   Reuses the same draggable header as the normal state, plus a body
+   row with real padding so "Begin encounter" isn't cramped. */
+.fs-panel--setup {
+  padding: 9px 11px 12px;
+}
+
+.fs-setup-body {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}
+
+/* Pill buttons - Begin/End encounter. Same shape language as the rest
+   of the Embermark suite (Triad's action chips, Kronos's topbar pill):
+   a bordered glass pill that fills with gold on hover rather than a
+   flat text link. */
+.fs-control--begin,
+.fs-control--end {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  font-family: var(--fs-font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--fs-gold-line);
+  background: var(--fs-gold-soft);
+  color: var(--fs-gold-light);
+  transition: background 150ms var(--fs-ease), color 150ms var(--fs-ease), box-shadow 150ms var(--fs-ease);
+}
+
+.fs-control--begin i,
+.fs-control--end i {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.fs-control--begin:hover,
+.fs-control--end:hover {
+  background: var(--fs-gold);
+  color: var(--fs-on-gold);
+  box-shadow: 0 0 0 1px var(--fs-gold-line), 0 4px 14px rgba(212, 178, 90, 0.25);
+}
+
+.fs-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 7px;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fs-gold-line) transparent;
+}
+
+.fs-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fs-list::-webkit-scrollbar-thumb {
+  background: var(--fs-gold-line);
+  border-radius: 3px;
+}
+
+/* No boxed cards - each combatant is a fluid row separated by a
+   hairline. The active row gets a soft horizontal wash instead of a
+   border, and a slim accent line down the left edge instead of a
+   full box outline. */
+.fs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--fs-hair);
+  border-left: 2px solid transparent;
+  border-radius: 4px;
+  transition: background 150ms var(--fs-ease), padding 150ms var(--fs-ease), border-color 150ms var(--fs-ease);
+}
+
+.fs-list .fs-row:last-child {
+  border-bottom: none;
+}
+
+.fs-row--active {
+  background: linear-gradient(90deg, var(--fs-gold-soft), transparent 85%);
+  border-left-color: var(--fs-gold);
+  padding: 9px 4px 9px 6px;
+}
+
+.fs-row--defeated {
+  opacity: 0.5;
+}
+
+.fs-row--hidden:not(.fs-row--active) {
+  opacity: 0.65;
+}
+
+/* Disposition accent, only shown when the row isn't already carrying
+   the active-turn accent color. */
+.fs-row--friendly {
+  border-left-color: color-mix(in srgb, var(--fs-sky) 55%, transparent);
+}
+
+.fs-row--hostile {
+  border-left-color: color-mix(in srgb, var(--fs-ember) 55%, transparent);
+}
+
+.fs-row--active.fs-row--friendly,
+.fs-row--active.fs-row--hostile {
+  border-left-color: var(--fs-gold);
+}
+
+/* GM-only affordance: rows are clickable to pan to the token. */
+.fs-panel--gm .fs-row {
+  cursor: pointer;
+}
+
+.fs-panel--gm .fs-row:hover {
+  background: var(--fs-fill);
+}
+
+.fs-row__portrait {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--fs-radius-sm);
+  background-size: cover;
+  background-position: center;
+  background-color: #332920;
+  box-shadow: 0 0 0 1px var(--fs-hair-2);
+  flex-shrink: 0;
+  transition: width 150ms var(--fs-ease), height 150ms var(--fs-ease), filter 150ms var(--fs-ease), box-shadow 150ms var(--fs-ease);
+}
+
+.fs-row--active .fs-row__portrait {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 0 0 1.5px var(--fs-gold), 0 0 12px rgba(212, 178, 90, 0.35);
+}
+
+.fs-row--defeated .fs-row__portrait {
+  filter: grayscale(1);
+}
+
+.fs-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.fs-row__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.fs-row__name {
+  font-size: 12.5px;
+  color: var(--fs-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-row--active .fs-row__name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fs-gold-light);
+}
+
+.fs-row--defeated .fs-row__name {
+  text-decoration: line-through;
+  text-decoration-color: var(--fs-ink-faint);
+  color: var(--fs-ink-faint);
+}
+
+.fs-row__hidden-icon {
+  color: var(--fs-ink-faint);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.fs-row__initiative {
+  font-family: var(--fs-font-display);
+  font-size: 12px;
+  color: var(--fs-ink-dim);
+  flex-shrink: 0;
+}
+
+.fs-panel--gm .fs-row__initiative {
+  cursor: text;
+  border-bottom: 1px dotted var(--fs-gold-line);
+}
+
+.fs-row__initiative--pending {
+  color: var(--fs-ink-faint);
+}
+
+.fs-row--active .fs-row__initiative {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fs-gold);
+}
+
+.fs-row__initiative-input {
+  width: 36px;
+  font-family: var(--fs-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fs-gold-light);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--fs-gold-line);
+  border-radius: 4px;
+  padding: 0 4px;
+  text-align: right;
+}
+
+.fs-row__roll {
+  color: var(--fs-gold);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 150ms var(--fs-ease), color 150ms var(--fs-ease);
+}
+
+.fs-row__roll:hover {
+  color: var(--fs-gold-light);
+  transform: scale(1.15);
+}
+
+.fs-row__skip-icon {
+  color: var(--fs-ink-faint);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.fs-row__statuses {
+  display: flex;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.fs-row__status-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  object-fit: cover;
+  border: 1px solid var(--fs-gold-line);
+}
+
+.fs-hp-bar {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.fs-row--active .fs-hp-bar {
+  height: 4px;
+  margin-top: 5px;
+}
+
+.fs-hp-bar__fill {
+  height: 100%;
+  transition: width 250ms var(--fs-ease), background 250ms var(--fs-ease);
+}
+
+.fs-hp-bar__fill--high {
+  background: var(--fs-moss);
+}
+
+.fs-hp-bar__fill--mid {
+  background: var(--fs-gold);
+}
+
+.fs-hp-bar__fill--low {
+  background: var(--fs-ember);
+}
+
+.fs-row__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1px;
+}
+
+.fs-row__hp-value {
+  font-size: 9px;
+  color: var(--fs-ink-faint);
+}
+
+.fs-tracker-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--fs-hair);
+}
+
+.fs-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--fs-ink-dim);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 150ms var(--fs-ease), background 150ms var(--fs-ease);
+}
+
+.fs-control:hover {
+  color: var(--fs-gold-light);
+  background: var(--fs-fill);
+}
+
+.fs-control--end {
+  width: auto;
+  height: auto;
+  border-radius: 999px;
+}
+
+/* Upcoming: the 1-2 combatants who'd act next, a much quieter cue
+   than the active row so it doesn't compete with it. */
+.fs-row--upcoming:not(.fs-row--active) {
+  background: linear-gradient(90deg, rgba(212, 178, 90, 0.05), transparent 85%);
+}
+
+.fs-row--upcoming:not(.fs-row--active) .fs-row__portrait {
+  box-shadow: 0 0 0 1px var(--fs-gold-line);
+}
+
+/* Delaying: holding an action, waiting to jump back in. */
+.fs-row--delayed {
+  opacity: 0.7;
+}
+
+.fs-row__delay-icon {
+  color: var(--fs-ink-dim);
+  font-size: 11px;
+}
+
+.fs-row__delay,
+.fs-row__act-now {
+  color: var(--fs-ink-faint);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 150ms var(--fs-ease), transform 150ms var(--fs-ease);
+}
+
+.fs-row__delay:hover,
+.fs-row__act-now:hover {
+  color: var(--fs-gold-light);
+  transform: scale(1.15);
+}
+
+.fs-row__act-now {
+  color: var(--fs-gold);
+}
+
+/* End/pass turn: the active combatant's own "I'm done" action - kept
+   visually calmer than the roll die so it doesn't compete with it,
+   but still clearly its own button, not a status icon. */
+.fs-row__end-turn {
+  color: var(--fs-moss);
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 2px;
+  transition: color 150ms var(--fs-ease), transform 150ms var(--fs-ease);
+}
+
+.fs-row__end-turn:hover {
+  color: var(--fs-moss-light);
+  transform: scale(1.15);
+}
+
+/* Surprised: won't act round 1. */
+.fs-row__surprise-icon {
+  color: var(--fs-sky);
+  font-size: 10px;
+}
+
+.fs-row__surprise-icon--toggle {
+  color: var(--fs-ink-faint);
+  cursor: pointer;
+  transition: color 150ms var(--fs-ease);
+}
+
+.fs-row__surprise-icon--toggle:hover {
+  color: var(--fs-sky);
+}
+
+/* Compact mode: only the active combatant, full detail, plus a small
+   "who's next" thumbnail beside it. */
+.fs-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.fs-compact .fs-row {
+  flex: 1;
+  border-bottom: none;
+}
+
+.fs-next-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.fs-next-thumb__img {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--fs-radius-sm);
+  background-size: cover;
+  background-position: center;
+  background-color: #332920;
+  box-shadow: 0 0 0 1px var(--fs-gold-line);
+}
+
+.fs-next-thumb__label {
+  font-family: var(--fs-font-display);
+  color: var(--fs-ink-faint);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* -------------------------------------------- */
+/* Docked inside Triad's Initiative tab          */
+/* -------------------------------------------- */
+
+/* Rather than keeping its own copies of the palette while docked,
+   First Strike re-points every --fs-* token at Triad's real --tr-*
+   ones (falling back to its own value if Triad's variable somehow
+   isn't there). Docked and floating end up sharing one true source of
+   truth for the look, instead of two color palettes that merely
+   happen to agree today. */
+.first-strike-tracker.is-docked {
+  --fs-glass: transparent;
+  --fs-hair: var(--tr-hair, var(--fs-hair));
+  --fs-hair-2: var(--tr-hair-2, var(--fs-hair-2));
+  --fs-fill: var(--tr-fill, var(--fs-fill));
+  --fs-ink: var(--tr-ink, var(--fs-ink));
+  --fs-ink-dim: var(--tr-ink-dim, var(--fs-ink-dim));
+  --fs-ink-faint: var(--tr-ink-faint, var(--fs-ink-faint));
+  --fs-on-gold: var(--tr-on-gold, var(--fs-on-gold));
+  --fs-gold: var(--tr-gold, var(--fs-gold));
+  --fs-gold-light: var(--tr-gold-light, var(--fs-gold-light));
+  --fs-gold-soft: var(--tr-gold-soft, var(--fs-gold-soft));
+  --fs-gold-line: var(--tr-gold-line, var(--fs-gold-line));
+  --fs-ember: var(--tr-ember, var(--fs-ember));
+  --fs-ember-light: var(--tr-ember-light, var(--fs-ember-light));
+  --fs-moss: var(--tr-moss, var(--fs-moss));
+  --fs-sky: var(--tr-sky, var(--fs-sky));
+
+  position: static;
+  width: auto;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
+}
+
+.first-strike-tracker.is-docked .fs-panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 13px;
+}
+
+.first-strike-tracker.is-docked .first-strike-tracker__toggle {
+  cursor: default;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--fs-hair-2);
+}
+
+.first-strike-tracker.is-docked .first-strike-tracker__caret {
+  display: none;
+}
+
+.first-strike-tracker.is-docked .fs-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.first-strike-tracker.is-docked .fs-tracker-controls {
+  margin-top: 16px;
+}

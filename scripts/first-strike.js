@@ -1,0 +1,406 @@
+import { FirstStrikeTracker, getActorHP } from "./tracker-app.js";
+import { MODULE_ID } from "./constants.js";
+import { ensureSocket, requestRollInitiative } from "./gm-actions.js";
+
+let tracker;
+let autoSkipping = false;
+
+/**
+ * Tracks, per combat, who was actually active a moment ago. Needed to
+ * correct the turn pointer whenever something re-sorts `combat.turns`
+ * mid-fight - see `resyncActiveCombatant` below for why.
+ */
+const lastActiveCombatantId = new Map();
+
+/**
+ * Tracks, per combat, the {round, turn} pair from the previous
+ * "updateCombat" event, purely so the next one can tell whether the
+ * table just moved forward or backward - see `autoSkipCombatants` for
+ * why that direction matters.
+ */
+const lastTurnState = new Map();
+
+/**
+ * Compares two {round, turn} snapshots to say which way the table
+ * moved. A round change dominates (previousRound/nextRound can leave
+ * `turn` pointing anywhere in the new round, so comparing round first
+ * is what actually reflects intent); otherwise it's a plain turn
+ * comparison within the same round.
+ */
+function getTurnDirection(previous, current) {
+  if (current.round !== previous.round) {
+    return current.round > previous.round ? "forward" : "backward";
+  }
+  if (current.turn !== previous.turn) {
+    return current.turn > previous.turn ? "forward" : "backward";
+  }
+  return "forward";
+}
+
+Hooks.once("init", () => {
+  console.log("First Strike | Initializing");
+
+  game.keybindings.register(MODULE_ID, "nextTurn", {
+    name: "First Strike: Next Turn",
+    editable: [{ key: "BracketRight" }],
+    restricted: true,
+    onDown: () => {
+      game.combats?.active?.nextTurn();
+    }
+  });
+
+  game.keybindings.register(MODULE_ID, "previousTurn", {
+    name: "First Strike: Previous Turn",
+    editable: [{ key: "BracketLeft" }],
+    restricted: true,
+    onDown: () => {
+      game.combats?.active?.previousTurn();
+    }
+  });
+});
+
+Hooks.once("ready", async () => {
+  try {
+    await loadTemplates({
+      "first-strike-row": "modules/first-strike/templates/row.hbs"
+    });
+  } catch (err) {
+    console.error("First Strike | failed to load row template", err);
+  }
+
+  try {
+    // Force this here too, on every client including the GM's - the
+    // socketlib.ready hook is where this is *supposed* to happen, but
+    // it can fire before our listener for it even attaches. Foundry's
+    // own "ready" hook fires late enough that socketlib is reliably
+    // available by this point, and ensureSocket() is a no-op if
+    // already registered.
+    ensureSocket();
+
+    if (game.user.isGM && typeof socketlib === "undefined") {
+      ui.notifications.error(
+        "First Strike requires the socketlib module. Players won't be able to roll their own initiative or act on delayed turns until it's installed and enabled.",
+        { permanent: true }
+      );
+    }
+  } catch (err) {
+    // Whatever goes wrong with socketlib setup, it must never be able
+    // to stop the tracker itself from being created below.
+    console.error("First Strike | socketlib setup failed", err);
+  }
+
+  tracker = new FirstStrikeTracker();
+
+  // Public API: lets Triad's "Roll Initiative" button use the same GM relay.
+  game.modules.get(MODULE_ID).api = { tracker, requestRollInitiative };
+
+  // Triad may have finished its own ready hook before or after this one.
+  if (game.triad?.api?.registerDock) dockIntoTriad(game.triad.api);
+  renderTracker();
+});
+
+/* -------------------------------------------- */
+/* Triad integration                             */
+/* -------------------------------------------- */
+
+Hooks.on("triad.ready", (api) => {
+  if (tracker) dockIntoTriad(api);
+});
+
+/**
+ * Moves the tracker into Triad's Initiative tab. The tab is a container
+ * that survives Triad's own re-renders, so the tracker keeps rendering
+ * itself exactly as before - it just lives there instead of floating.
+ */
+function dockIntoTriad(api) {
+  const host = api.registerDock({
+    id: "initiative",
+    label: "Initiative",
+    icon: "fa-solid fa-dice-d20",
+    order: 30,
+    empty: "No active encounter."
+  });
+  tracker.dock(host);
+}
+
+/* -------------------------------------------- */
+/* Rendering                                     */
+/* -------------------------------------------- */
+
+function renderTracker() {
+  tracker?.requestRender();
+}
+
+Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
+  renderTracker();
+  // Record this on every client, not just the GM's - it's pure local
+  // bookkeeping (no write), and it needs to stay current regardless of
+  // who's logged in so the GM's client always has a true "who was
+  // active a moment ago" to compare against in resyncActiveCombatant.
+  lastActiveCombatantId.set(combat.id, combat.combatant?.id ?? null);
+
+  if (!game.user.isGM) return;
+  if ("turn" in changed || "round" in changed) {
+    const previous = lastTurnState.get(combat.id) ?? { round: combat.round, turn: combat.turn };
+    const current = { round: combat.round, turn: combat.turn };
+    lastTurnState.set(combat.id, current);
+    const direction = getTurnDirection(previous, current);
+    await autoSkipCombatants(combat, direction);
+  } else {
+    lastTurnState.set(combat.id, { round: combat.round, turn: combat.turn });
+  }
+  if ("round" in changed && combat.round > 1) {
+    clearSurprisedFlags(combat);
+  }
+});
+
+Hooks.on("createCombat", renderTracker);
+Hooks.on("deleteCombat", (combat) => {
+  renderTracker();
+  lastActiveCombatantId.delete(combat.id);
+  lastTurnState.delete(combat.id);
+  // Hook point for the loot module: loot should only be generated once
+  // the encounter is actually over, not mid-fight.
+  Hooks.callAll("firstStrike.combatEnded", combat);
+});
+
+Hooks.on("createCombatant", async (combatant) => {
+  renderTracker();
+  // A monster added mid-fight (via Foundry's own right-click menu or
+  // its native combat tracker, not just First Strike's own button)
+  // re-sorts the turn order the moment its initiative is set. Without
+  // this, that re-sort can silently hand the "active" turn to the
+  // wrong combatant - see resyncActiveCombatant for the full story.
+  if (game.user.isGM) await resyncActiveCombatant(combatant.combat);
+});
+Hooks.on("deleteCombatant", async (combatant) => {
+  renderTracker();
+  if (game.user.isGM) await resyncActiveCombatant(combatant.combat);
+});
+Hooks.on("updateCombatant", async (combatant, changed, _options, _userId) => {
+  renderTracker();
+  if (!game.user.isGM) return;
+  // A reveal/hide toggle, defeated state, delay, or surprise flag can
+  // change who should currently be skipped, same as initiative changes.
+  if ("initiative" in changed || "flags" in changed || "defeated" in changed) {
+    await autoSkipCombatants(combatant.combat);
+  }
+  if ("initiative" in changed) {
+    await resnapOpeningTurn(combatant.combat);
+    await resyncActiveCombatant(combatant.combat);
+  }
+});
+
+Hooks.on("updateActor", (actor, changed, _options, _userId) => {
+  const hpChanged = foundry.utils.hasProperty(changed, "system.attributes.hp.value");
+  if (hpChanged) {
+    renderTracker();
+    if (game.user.isGM) syncDefeatedState(actor);
+  }
+});
+
+Hooks.on("updateToken", (tokenDoc, changed) => {
+  if ("texture" in changed || "name" in changed) renderTracker();
+  if ("hidden" in changed) {
+    renderTracker();
+    if (game.user.isGM && tokenDoc.combatant) autoSkipCombatants(tokenDoc.combatant.combat);
+  }
+});
+
+Hooks.on("createActiveEffect", renderTracker);
+Hooks.on("deleteActiveEffect", renderTracker);
+
+/**
+ * Begin Encounter no longer auto-rolls, so it's normal for rolls to
+ * trickle in one at a time while combat has already started. Each
+ * roll re-sorts `combat.turns`, and the turn pointer should keep
+ * tracking whoever actually has the highest initiative right now -
+ * for as long as at least one combatant still hasn't rolled.
+ *
+ * This used to track "has real play started" with an explicit flag
+ * set from half a dozen different places (button clicks, keybinds,
+ * delay, act-now, auto-skip). That was fragile - it only takes one
+ * spot to miss, or one accidental click during the roll-in window, to
+ * permanently disable the correction and leave the pointer stuck on
+ * whoever happened to be highest at that moment (which is exactly
+ * what happened: a stray click froze it on someone who then went on
+ * to roll the *lowest* number of the table).
+ *
+ * Gating on "is anyone still unrolled" instead needs no flag and no
+ * list of call sites to keep in sync: as long as someone hasn't
+ * rolled, correcting the pointer is always safe and always wanted.
+ * The moment the last person rolls, this fires one final correction
+ * and then naturally never has a reason to touch it again.
+ */
+async function resnapOpeningTurn(combat) {
+  if (!combat || !combat.started || combat.round !== 1) return;
+  // Only correct while the opening roll-in is still happening - once
+  // everyone has a number, this stops touching the pointer entirely,
+  // so a later manual initiative edit (a supported GM action) doesn't
+  // get silently overridden.
+  if (!combat.turns.some((c) => c.initiative === null)) return;
+
+  const rolled = combat.turns.filter((c) => c.initiative !== null);
+  if (!rolled.length) return;
+
+  const highest = rolled.reduce((a, b) => (b.initiative > a.initiative ? b : a));
+  const actualIndex = combat.turns.findIndex((c) => c.id === highest.id);
+  if (actualIndex >= 0 && actualIndex !== combat.turn) {
+    await combat.update({ turn: actualIndex });
+  }
+}
+
+/**
+ * Mid-fight - any round, not just the opening roll-in - adding a
+ * combatant, rolling or editing someone's initiative, or removing a
+ * combatant all make Foundry re-sort `combat.turns`. Foundry's own
+ * `combat.turn` is just a numeric index into that array; it is NOT
+ * tied to a combatant's identity. So when a new entry lands above the
+ * active row (a reinforcement monster with a high roll, say), the
+ * index that used to point at "whoever's turn it is" can end up
+ * pointing at someone else entirely - with no error, no prompt, just
+ * the wrong creature quietly marked active. The fix isn't to roll
+ * back the sort (the new order is correct) - it's to look up where
+ * the combatant who WAS active a moment ago ended up, and point the
+ * turn index back at them.
+ *
+ * `lastActiveCombatantId` is what "a moment ago" means here - it's
+ * updated on every `updateCombat` event, including the ones this very
+ * function triggers, so it keeps tracking correctly through a chain
+ * of changes. If the previously-active combatant was the one just
+ * deleted, there's nothing to restore to - Foundry's own clamped
+ * index is left as whatever it already resolved to.
+ */
+async function resyncActiveCombatant(combat) {
+  if (!combat || !combat.started) return;
+
+  const expectedId = lastActiveCombatantId.get(combat.id);
+  if (!expectedId) return;
+
+  const currentId = combat.combatant?.id ?? null;
+  if (currentId === expectedId) return;
+
+  const expectedIndex = combat.turns.findIndex((c) => c.id === expectedId);
+  if (expectedIndex < 0) return;
+
+  await combat.update({ turn: expectedIndex });
+}
+
+/* -------------------------------------------- */
+/* Defeated-state tracking                       */
+/* -------------------------------------------- */
+
+/**
+ * Keeps the combatant's native "defeated" state - and the actual dead
+ * status effect on the token itself - in sync with current HP.
+ *
+ * This uses Foundry's own mechanism (Combatant#defeated field +
+ * Actor#toggleStatusEffect with CONFIG.specialStatusEffects.DEFEATED)
+ * rather than a module-specific flag, so:
+ *  - the same skull/X overlay shows on the token on the canvas, which
+ *    is what "put a dead icon on the token" actually means;
+ *  - any other module or macro that already knows how to read
+ *    Foundry's standard defeated state (combatant.isDefeated,
+ *    actor.statuses) sees this correctly, with nothing First Strike-
+ *    specific required.
+ *
+ * Matching is done on actor UUID, not actor id. For unlinked tokens
+ * (three copies of the same "Orc" dragged onto the scene), each
+ * token's synthetic actor shares the same base actor id but has a
+ * distinct, token-scoped uuid. Matching on id would treat all three
+ * orcs as one and defeat/revive them together; uuid keeps each
+ * token's HP independent.
+ *
+ * Note for coordinating with the Plunder module: this can toggle on
+ * and off multiple times during a single encounter (defeated, healed,
+ * defeated again), since it's purely HP-driven. Plunder should key
+ * loot generation off `deleteCombat` / the `firstStrike.combatEnded`
+ * hook - not off this status effect appearing - or it risks trying to
+ * generate loot mid-fight.
+ */
+async function syncDefeatedState(actor) {
+  const combat = game.combats?.active;
+  if (!combat) return;
+
+  const hp = getActorHP(actor);
+  if (!hp) return;
+
+  const isDefeated = hp.max > 0 && hp.value <= 0;
+  const linkedCombatants = combat.combatants.filter((c) => c.actor?.uuid === actor.uuid);
+
+  for (const combatant of linkedCombatants) {
+    if (combatant.isDefeated === isDefeated) continue;
+    await combatant.update({ defeated: isDefeated });
+    await actor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, {
+      active: isDefeated,
+      overlay: true
+    });
+  }
+}
+
+/**
+ * The "surprised" mark only matters for round 1. Once round 2 starts
+ * there's no more mechanical effect, so clear the flags rather than
+ * leave stale data sitting on the combatants.
+ */
+async function clearSurprisedFlags(combat) {
+  for (const combatant of combat.combatants) {
+    if (combatant.getFlag(MODULE_ID, "surprised")) {
+      await combatant.unsetFlag(MODULE_ID, "surprised");
+    }
+  }
+}
+
+/**
+ * If the combatant whose turn it currently is has been flagged as
+ * defeated, is delaying, is surprised (round 1 only), or its token is
+ * currently hidden, silently advance past them. Guards against
+ * re-entrancy and against looping forever when everyone is skippable.
+ *
+ * `direction` matters: this used to always call `combat.nextTurn()`,
+ * which was fine for the normal case (play moving forward lands on a
+ * defeated enemy, skip ahead to the next living one) but actively
+ * broke the GM's own "previous turn" button - clicking back a turn
+ * onto a defeated combatant would immediately auto-skip *forward*
+ * again, right back past where the GM was trying to go, making
+ * "previous turn" look like it did nothing (or worse, bounced). The
+ * fix is simply to keep skipping in whichever direction the table was
+ * already moving - forward for next-turn/next-round, backward for
+ * previous-turn/previous-round - so stepping back through a dead
+ * enemy lands you on the next living one before it, not back where
+ * you started.
+ */
+async function autoSkipCombatants(combat, direction = "forward") {
+  if (!combat || !combat.started || autoSkipping) return;
+
+  const shouldSkip = (combatant) => {
+    const isHidden = combatant.token?.hidden ?? false;
+    const isDelayed = combatant.getFlag(MODULE_ID, "delayed") ?? false;
+    const isSurprised = (combatant.getFlag(MODULE_ID, "surprised") ?? false) && combat.round === 1;
+    return combatant.isDefeated || isHidden || isDelayed || isSurprised;
+  };
+
+  autoSkipping = true;
+  try {
+    let iterations = 0;
+    const maxIterations = combat.turns.length + 1;
+
+    while (iterations < maxIterations) {
+      const current = combat.combatant;
+      if (!current) break;
+      if (!shouldSkip(current)) break;
+
+      const everyoneSkippable = combat.turns.every(shouldSkip);
+      if (everyoneSkippable) break;
+
+      if (direction === "backward") {
+        await combat.previousTurn();
+      } else {
+        await combat.nextTurn();
+      }
+      iterations++;
+    }
+  } finally {
+    autoSkipping = false;
+  }
+}
