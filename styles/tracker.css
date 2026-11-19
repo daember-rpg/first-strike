@@ -602,9 +602,18 @@ span.fs-control--end:hover {
   display: none;
 }
 
+/* Previously `max-height: none; overflow: visible;`, trusting Triad's
+   own `.triad-dock` (overflow-y: auto) to scroll the whole tab. In
+   practice, with a full party + several monsters (12 combatants),
+   entries past a certain point were rendering outside any scrollable
+   region and were simply unreachable - no scrollbar, wheel did
+   nothing. Giving the list its own bounded, scrollable height again
+   while docked means every combatant stays reachable regardless of
+   how Triad's tab container ends up sized. */
 .first-strike-tracker.is-docked .fs-list {
-  max-height: none;
-  overflow: visible;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .first-strike-tracker.is-docked .fs-tracker-controls {
