@@ -1,10 +1,9 @@
 {{#if hasCombat}}
 {{#if stripMode}}
 <div class="fs-stack">
-<div class="fs-panel fs-panel--bar {{#if isGM}}fs-panel--gm{{/if}}">
-  <div class="first-strike-tracker__toggle fs-bar__lead" title="Drag to move - click to collapse">
-    <span class="fs-bar__round">{{#if started}}Round {{round}}{{else}}Preparing{{/if}}</span>
-    <span class="fs-bar__who">{{#if activeName}}{{activeName}}{{else}}{{combatantCount}} combatants{{/if}}</span>
+<div class="fs-panel--bar {{#if isGM}}fs-panel--gm{{/if}}">
+  <div class="first-strike-tracker__toggle fs-bar__lead" title="{{#if started}}Round {{round}}{{else}}Preparing encounter{{/if}} - drag to move, click to collapse">
+    <span class="fs-bar__round" aria-label="{{#if started}}Round {{round}}{{else}}Preparing encounter{{/if}}">{{#if started}}R{{round}}{{else}}&hellip;{{/if}}</span>
   </div>
 
   {{#unless collapsed}}

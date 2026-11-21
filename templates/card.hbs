@@ -4,7 +4,7 @@
      {{#if isActive}}aria-current="true"{{/if}}
      aria-label="{{name}}{{#if hasInitiative}}, initiative {{initiative}}{{/if}}{{#if isActive}}, current turn{{/if}}{{#if isNext}}, up next{{/if}}{{#if isDefeated}}, defeated{{/if}}{{#if isDelayed}}, delaying{{/if}}{{#if surprisedActive}}, surprised{{/if}}{{#if hpVisible}}, {{hp.value}} of {{hp.max}} hit points{{/if}}"
      title="{{name}}{{#if hpVisible}} - {{hp.value}}/{{hp.max}} HP{{/if}}{{#if isNext}} (next){{/if}}">
-  {{#if isNext}}<span class="fs-card__next" aria-hidden="true"><i class="fa-solid fa-angles-right"></i> Next</span>{{/if}}
+  {{#if isNext}}<span class="fs-card__next" aria-hidden="true"><i class="fa-solid fa-caret-down"></i></span>{{/if}}
   <div class="fs-card__portrait" style="background-image: url('{{img}}');">
 
     {{#if surprisedActive}}
@@ -30,6 +30,8 @@
       <div class="fs-card__badge"><span class="fs-card__pending">-</span></div>
     {{/if}}
   </div>
+
+  <span class="fs-card__name" aria-hidden="true">{{name}}</span>
 
   <div class="fs-card__hp">
     {{#if hpVisible}}

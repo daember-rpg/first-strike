@@ -87,3 +87,14 @@ O First Strike não se encaixa mais na aba de Iniciativa do Triad: trocar de
 aba fazia o jogador perder a ficha de vista. O Triad ainda pode usar a API
 `game.modules.get("first-strike").api.requestRollInitiative` pra rolar
 iniciativa pelo mesmo relay do GM.
+
+## Visual 1.6
+
+A barra virou uma fileira de retratos redondos flutuando, sem container. O
+turno atual fica maior, com anel dourado e o nome embaixo; o próximo tem uma
+setinha dourada; aliados têm anel azul liso e inimigos anel vermelho com folga
+escura (não depende só da cor). O round aparece como um disquinho "R5" no
+começo da fila e serve de alça para arrastar. Nomes dos demais aparecem ao
+passar o mouse; o número de iniciativa é sempre visível para o GM e, para
+jogadores, ao passar o mouse. As ferramentas do GM ficam numa pílula discreta
+embaixo, que ganha força quando o mouse chega perto.
