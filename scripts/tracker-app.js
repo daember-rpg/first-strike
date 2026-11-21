@@ -120,21 +120,13 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? "true" : "false");
   }
 
-  /**
-   * "strip" (default): a horizontal row of portraits across the top of
-   * the screen, readable at a glance without opening anything or
-   * leaving the character sheet. "list": the original vertical list.
-   */
+  /** The tracker is always the horizontal strip of round portraits. */
   get viewMode() {
-    return localStorage.getItem(VIEW_STORAGE_KEY) === "list" ? "list" : "strip";
-  }
-
-  set viewMode(value) {
-    localStorage.setItem(VIEW_STORAGE_KEY, value === "list" ? "list" : "strip");
+    return "strip";
   }
 
   get isStrip() {
-    return this.viewMode === "strip";
+    return true;
   }
 
   /** Each view remembers where the player dragged it, independently. */
@@ -400,27 +392,6 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       });
     }
 
-    const modeToggle = this.element.querySelector("[data-mode-toggle]");
-    const toggleView = () => {
-      this.viewMode = this.isStrip ? "list" : "strip";
-      this.requestRender();
-    };
-    if (modeToggle) {
-      modeToggle.setAttribute("role", "button");
-      modeToggle.tabIndex = 0;
-      modeToggle.setAttribute("aria-label", modeToggle.title);
-    }
-    modeToggle?.addEventListener("pointerdown", (event) => event.stopPropagation());
-    modeToggle?.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleView();
-    });
-    modeToggle?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      toggleView();
-    });
-
     this.element.querySelectorAll(".fs-row, .fs-card").forEach((row) => {
       row.addEventListener("click", (event) => {
         if (
@@ -480,6 +451,9 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     const overflowing = strip.scrollWidth > strip.clientWidth + 1;
     // The soft edge fade only makes sense when something is cut off.
     strip.classList.toggle("is-overflowing", overflowing);
+    // When everything fits, let glows and name labels spill past the
+    // strip instead of being clipped by it.
+    strip.classList.toggle("is-free", !overflowing);
 
     const active = strip.querySelector(".fs-card--active");
     if (active && overflowing) {

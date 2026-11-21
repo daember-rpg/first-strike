@@ -568,7 +568,7 @@ span.fs-control--end:hover {
   gap: 24px;
   /* Headroom for the active glow above and the name label below, which
      overflow would otherwise clip. */
-  padding: 16px 22px 46px;
+  padding: 34px 34px 56px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -578,7 +578,16 @@ span.fs-control--end:hover {
   display: none;
 }
 
+.fs-strip:not(.is-overflowing) {
+  /* Nothing to scroll, so nothing to clip: the active halo and the name
+     label are free to spill out of the strip. */
+  overflow: visible;
+}
+
 .fs-strip.is-overflowing {
+  /* Only when it really scrolls does it clip, so give the halo room. */
+  padding-top: 40px;
+  margin-top: -24px;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
   mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
@@ -854,6 +863,7 @@ span.fs-control--end:hover {
 /* Delay / End turn: two round buttons, only while it's your turn. */
 .fs-bar__turn {
   flex: 0 0 auto;
+  margin-left: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1227,4 +1237,9 @@ span.fs-control--end:hover {
   .fs-bar__btn:hover {
     transform: none;
   }
+}
+
+/* Everything fits: nothing to scroll, so nothing should clip the halo. */
+.fs-strip.is-free {
+  overflow: visible;
 }

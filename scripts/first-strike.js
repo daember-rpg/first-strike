@@ -96,7 +96,6 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   try {
     await loadTemplates({
-      "first-strike-row": "modules/first-strike/templates/row.hbs",
       "first-strike-card": "modules/first-strike/templates/card.hbs"
     });
   } catch (err) {

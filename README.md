@@ -1,7 +1,7 @@
 # First Strike
 
 Rastreador de iniciativa para Foundry VTT (PF2e) — uma faixa de retratos no
-topo da tela (ou a lista vertical clássica), arrastável pra qualquer lugar e
+topo da tela, arrastável pra qualquer lugar e
 sempre visível, pra ninguém precisar sair da ficha pra ver a ordem de turno.
 
 ## Instalação
@@ -35,9 +35,9 @@ trocar a pasta manualmente.
   com anel dourado e o nome de quem está agindo na ponta esquerda, e a
   etiqueta **Next** (bem legível, com contorno tracejado) só no próximo. O nome de qualquer um aparece ao passar
   o mouse. Se a luta for maior que a tela, a faixa rola de lado (a roda do
-  mouse também funciona). Os controles do GM e o ícone que alterna entre a
-  faixa e a lista vertical ficam numa pílula menor encaixada embaixo da
-  barra, esmaecida até o mouse chegar nela.
+  mouse também funciona). Os controles do GM ficam numa pílula discreta embaixo
+  dos retratos, esmaecida até o mouse chegar nela. (A lista vertical foi
+  removida: não combinava com o novo visual.)
 - **Aviso de turno**: um banner "Your turn" com um brilho suave nas bordas
   da tela quando chega a sua vez, e um banner menor "You're up next" quando
   você é o próximo. Dá pra trocar nas configurações do módulo (só meus
