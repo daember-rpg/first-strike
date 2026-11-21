@@ -216,13 +216,11 @@ async function flushAutoRolls() {
     if (!todo.length) continue;
     try {
       // Whispered so the table doesn't see the monsters' numbers in
-      // chat. The two option spellings are for different Foundry
-      // versions; each one ignores the other.
-      await combat.rollInitiative(todo, {
-        messageMode: "gm",
-        messageOptions: { rollMode: "gmroll" },
-        skipDialog: true
-      });
+      // chat. V14 renamed the option; older versions use rollMode.
+      const opts = { skipDialog: true };
+      if (game.release.generation >= 14) opts.messageMode = "gm";
+      else opts.messageOptions = { rollMode: "gmroll" };
+      await combat.rollInitiative(todo, opts);
     } catch (err) {
       console.error("First Strike | auto-roll of enemy initiative failed", err);
     }
