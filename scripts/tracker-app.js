@@ -361,17 +361,56 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
 
     this.element.querySelectorAll("[data-action]").forEach((el) => {
       el.addEventListener("click", (event) => this._onControlClick(event));
+      // Everything clickable is a real keyboard target too: focusable,
+      // announced as a button with the same text as its tooltip, and
+      // triggered by Enter or Space.
+      if (!el.hasAttribute("role")) el.setAttribute("role", "button");
+      if (!el.hasAttribute("tabindex")) el.tabIndex = 0;
+      if (!el.hasAttribute("aria-label") && el.title) el.setAttribute("aria-label", el.title);
+      el.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        this._onControlClick({ currentTarget: el });
+      });
     });
 
     const header = this.element.querySelector(".first-strike-tracker__toggle");
     this._makeHeaderDraggable(header);
 
+    // The header doubles as the collapse button; expose that to
+    // keyboards and screen readers (dragging stays pointer-only).
+    if (header) {
+      header.setAttribute("role", "button");
+      header.tabIndex = 0;
+      header.setAttribute("aria-expanded", String(!this.collapsed));
+      header.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.collapsed = !this.collapsed;
+        this.requestRender();
+      });
+    }
+
     const modeToggle = this.element.querySelector("[data-mode-toggle]");
+    const toggleView = () => {
+      this.viewMode = this.isStrip ? "list" : "strip";
+      this.requestRender();
+    };
+    if (modeToggle) {
+      modeToggle.setAttribute("role", "button");
+      modeToggle.tabIndex = 0;
+      modeToggle.setAttribute("aria-label", modeToggle.title);
+    }
     modeToggle?.addEventListener("pointerdown", (event) => event.stopPropagation());
     modeToggle?.addEventListener("click", (event) => {
       event.stopPropagation();
-      this.viewMode = this.isStrip ? "list" : "strip";
-      this.requestRender();
+      toggleView();
+    });
+    modeToggle?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleView();
     });
 
     this.element.querySelectorAll(".fs-row, .fs-card").forEach((row) => {

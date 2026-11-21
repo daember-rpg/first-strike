@@ -33,7 +33,7 @@ trocar a pasta manualmente.
 - **Faixa de iniciativa** no topo da tela, numa única barra fina: um retrato
   por combatente (todos do mesmo tamanho), com a iniciativa embaixo, o ativo
   com anel dourado e o nome de quem está agindo na ponta esquerda, e a
-  etiqueta **Next** só no próximo. O nome de qualquer um aparece ao passar
+  etiqueta **Next** (bem legível, com contorno tracejado) só no próximo. O nome de qualquer um aparece ao passar
   o mouse. Se a luta for maior que a tela, a faixa rola de lado (a roda do
   mouse também funciona). Os controles do GM e o ícone que alterna entre a
   faixa e a lista vertical ficam numa pílula menor encaixada embaixo da
@@ -47,6 +47,10 @@ trocar a pasta manualmente.
 - **Esconder nomes de inimigos** (configuração do mundo, desligada por
   padrão): os jogadores veem criaturas hostis que não são deles como
   "Unknown creature" com retrato em branco.
+- **Acessibilidade**: tudo que é clicável também funciona pelo teclado
+  (Tab, Enter ou Espaço), os retratos têm descrição para leitor de tela
+  (iniciativa, turno atual, próximo, HP), o aviso de turno é anunciado, e
+  as animações respeitam a opção de reduzir movimento do sistema.
 - Clicar num retrato leva a câmera até o token (o jogador só vai até tokens
   que ele já enxerga).
 - Mostra o combatente ativo em destaque, com HP visível pro GM sempre, e

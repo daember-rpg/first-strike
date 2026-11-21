@@ -91,6 +91,15 @@ function ensureElement(id, className) {
     el = document.createElement("div");
     el.id = id;
     el.className = className;
+    // The banner is read out politely by screen readers; the glow is
+    // purely decorative.
+    if (id === BANNER_ID) {
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
+      el.setAttribute("aria-atomic", "true");
+    } else {
+      el.setAttribute("aria-hidden", "true");
+    }
     document.body.appendChild(el);
   }
   return el;

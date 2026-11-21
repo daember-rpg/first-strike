@@ -507,7 +507,7 @@ span.fs-control--end:hover {
 }
 
 /* -------------------------------------------- */
-/* Strip view: one slim bar, nothing else        */
+/* Strip view: one slim bar + a drawer below     */
 /* -------------------------------------------- */
 
 /* Top-center by default, never wider than the screen. Once the player
@@ -522,15 +522,17 @@ span.fs-control--end:hover {
   max-width: min(94vw, 980px);
 }
 
-/* A single container: [round + who's acting] [portraits] [turn buttons]
-   [tools]. No nested boxes, no dividers, no scrollbar - the portraits
-   are the interface, everything else stays out of their way. */
+/* The bar itself: [round + who's acting] [portraits] [turn buttons].
+   Controls live in the drawer tucked underneath, like Kronos' secondary
+   bar, so nothing competes with the portraits for attention. */
 .fs-panel--bar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 7px 14px;
-  border-radius: 16px;
+  gap: 16px;
+  padding: 8px 16px;
+  border-radius: 18px;
   border-color: var(--fs-hair-2);
 }
 
@@ -539,22 +541,22 @@ span.fs-control--end:hover {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 1px;
-  max-width: 140px;
+  gap: 2px;
+  max-width: 150px;
 }
 
 .fs-bar__round {
   font-family: var(--fs-font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--fs-ink-faint);
+  color: var(--fs-ink-dim);
 }
 
 .fs-bar__who {
   max-width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.2;
   color: var(--fs-gold-light);
   white-space: nowrap;
@@ -567,9 +569,10 @@ span.fs-control--end:hover {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  /* Room for the active glow, which overflow would otherwise clip. */
-  padding: 6px 8px;
+  gap: 4px;
+  /* Headroom for the Next tab and the active glow, which overflow
+     would otherwise clip. */
+  padding: 12px 8px 8px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -584,41 +587,46 @@ span.fs-control--end:hover {
   mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 
-/* Every card is the same size and sits on the same line: who's acting
-   is told by the ring and by the others receding, not by growing. */
+/* Every card is the same size and sits on the same line. Each one
+   carries an invisible "plate" around its portrait; the active card's
+   plate lights up gold and the next card's gets a dashed outline, so
+   state is told by shape and label as well as by color. */
 .fs-card {
   --fs-ring: var(--fs-hair-2);
   position: relative;
+  box-sizing: border-box;
   flex: 0 0 auto;
-  width: 44px;
+  width: 58px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  opacity: 0.8;
-  transition: opacity 150ms var(--fs-ease);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  opacity: 0.72;
+  transition: opacity 150ms var(--fs-ease), background 150ms var(--fs-ease), border-color 150ms var(--fs-ease);
 }
 
 .fs-card--friendly {
-  --fs-ring: color-mix(in srgb, var(--fs-sky) 65%, transparent);
+  --fs-ring: color-mix(in srgb, var(--fs-sky) 70%, transparent);
 }
 
 .fs-card--hostile {
-  --fs-ring: color-mix(in srgb, var(--fs-ember) 65%, transparent);
+  --fs-ring: color-mix(in srgb, var(--fs-ember) 70%, transparent);
 }
 
 .fs-panel--gm .fs-card {
   cursor: pointer;
 }
 
-.fs-card:hover,
-.fs-card--active {
+.fs-card:hover {
   opacity: 1;
 }
 
 .fs-card__portrait {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 8px;
   background-size: cover;
   background-position: center;
@@ -628,8 +636,61 @@ span.fs-control--end:hover {
   transition: box-shadow 150ms var(--fs-ease), filter 150ms var(--fs-ease);
 }
 
+/* Whose turn it is: full brightness, a gold plate and ring, a slow
+   breathing glow. */
+.fs-card--active {
+  opacity: 1;
+  background: var(--fs-gold-soft);
+  border-color: var(--fs-gold);
+  box-shadow: 0 0 16px rgba(212, 178, 90, 0.4);
+  animation: fs-breathe 3s ease-in-out infinite;
+}
+
 .fs-card--active .fs-card__portrait {
-  box-shadow: 0 0 0 2px var(--fs-gold), 0 0 10px rgba(212, 178, 90, 0.5);
+  box-shadow: 0 0 0 2.5px var(--fs-gold);
+}
+
+@keyframes fs-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(212, 178, 90, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(212, 178, 90, 0.55);
+  }
+}
+
+/* Up next: a dashed plate and a readable tab, clearly secondary to the
+   active card but impossible to miss. */
+.fs-card--next {
+  opacity: 0.95;
+  border: 1px dashed var(--fs-gold-line);
+}
+
+.fs-card__next {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px 1px 6px;
+  border-radius: 999px;
+  background: var(--fs-gold);
+  color: var(--fs-on-gold);
+  font-family: var(--fs-font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  line-height: 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fs-card__next i {
+  font-size: 8px;
 }
 
 .fs-card--defeated {
@@ -648,23 +709,23 @@ span.fs-control--end:hover {
   opacity: 0.55;
 }
 
-/* Initiative: a quiet number fading in from the bottom of the portrait. */
+/* Initiative: a clear number fading in from the bottom of the portrait. */
 .fs-card__badge {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 18px;
+  height: 22px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 1px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
   font-family: var(--fs-font-display);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--fs-ink);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
 }
 
 .fs-card--active .fs-card__badge {
@@ -676,39 +737,21 @@ span.fs-control--end:hover {
 }
 
 .fs-card__pending {
-  color: var(--fs-ink-faint);
+  color: var(--fs-ink-dim);
 }
 
 .fs-card__badge .fs-row__initiative-input {
   width: 100%;
-  height: 16px;
+  height: 18px;
   margin: 0 3px;
-  font-size: 11px;
-}
-
-/* The single "Next" marker - one card only, inside the portrait. */
-.fs-card__next {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding-top: 2px;
-  height: 14px;
-  text-align: center;
-  background: linear-gradient(rgba(0, 0, 0, 0.8), transparent);
-  font-family: var(--fs-font-display);
-  font-size: 7.5px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  color: var(--fs-gold-light);
+  font-size: 12px;
 }
 
 .fs-card__flag {
   position: absolute;
   top: 3px;
   z-index: 1;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--fs-ink);
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.95);
 }
@@ -732,7 +775,8 @@ span.fs-control--end:hover {
   transition: opacity 150ms var(--fs-ease), color 150ms var(--fs-ease);
 }
 
-.fs-card:hover .fs-card__flag--toggle {
+.fs-card:hover .fs-card__flag--toggle,
+.fs-card__flag--toggle:focus-visible {
   opacity: 1;
 }
 
@@ -747,9 +791,9 @@ span.fs-control--end:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   color: var(--fs-gold-light);
-  font-size: 17px;
+  font-size: 19px;
   cursor: pointer;
   transition: background 150ms var(--fs-ease), color 150ms var(--fs-ease);
 }
@@ -766,11 +810,11 @@ span.fs-control--end:hover {
 
 /* Reserved even when empty, so every card is exactly the same height. */
 .fs-card__hp {
-  height: 3px;
+  height: 4px;
 }
 
 .fs-card .fs-hp-bar {
-  height: 3px;
+  height: 4px;
   margin: 0;
 }
 
@@ -779,19 +823,19 @@ span.fs-control--end:hover {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .fs-bar__btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: var(--fs-fill);
-  color: var(--fs-ink-dim);
-  font-size: 12px;
+  color: var(--fs-ink);
+  font-size: 13px;
   cursor: pointer;
   transition: color 150ms var(--fs-ease), background 150ms var(--fs-ease);
 }
@@ -802,38 +846,68 @@ span.fs-control--end:hover {
 }
 
 .fs-bar__btn--end {
-  color: var(--fs-moss);
-  background: color-mix(in srgb, var(--fs-moss) 16%, transparent);
+  color: var(--fs-moss-light);
+  background: color-mix(in srgb, var(--fs-moss) 20%, transparent);
 }
 
 .fs-bar__btn--end:hover {
-  color: var(--fs-moss-light);
-  background: color-mix(in srgb, var(--fs-moss) 28%, transparent);
+  color: var(--fs-ink);
+  background: color-mix(in srgb, var(--fs-moss) 35%, transparent);
 }
 
-/* GM controls and the view switch: a smaller pill tucked under the bar,
-   centered, the same way Kronos hangs its secondary row below its main
-   one. Quiet until the mouse is anywhere on the dock. */
-.fs-dock-tools {
+/* The drawer: GM controls and the view switch, centered and tucked
+   under the bar - same glass, a little narrower, rounded at the bottom. */
+.fs-drawer {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: max-content;
-  max-width: 100%;
-  margin: -1px auto 0;
-  padding: 4px 18px 5px;
-  background: var(--fs-glass);
-  backdrop-filter: blur(6px);
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  margin: -12px auto 0;
+  padding: 16px 18px 6px;
   border: 1px solid var(--fs-hair-2);
   border-top: none;
-  border-radius: 0 0 14px 14px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
-  opacity: 0.6;
+  border-radius: 0 0 16px 16px;
+  background: var(--fs-glass);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--fs-shadow);
   transition: opacity 150ms var(--fs-ease);
 }
 
-.first-strike-tracker:hover .fs-dock-tools {
+/* Players only have the view switch in there, so it stays out of sight
+   until the bar is hovered or focused. */
+.fs-drawer--quiet {
+  opacity: 0;
+}
+
+.first-strike-tracker:hover .fs-drawer--quiet,
+.fs-drawer--quiet:focus-within {
   opacity: 1;
+}
+
+.fs-drawer .fs-control {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  color: var(--fs-ink-dim);
+}
+
+.fs-drawer .fs-control:hover {
+  color: var(--fs-gold-light);
+}
+
+.fs-drawer .fs-control--end-encounter:hover {
+  color: var(--fs-ember-light);
+}
+
+/* Keyboard focus: a clear ring on everything clickable, in any view. */
+.first-strike-tracker [data-action]:focus-visible,
+.first-strike-tracker [data-mode-toggle]:focus-visible,
+.first-strike-tracker .first-strike-tracker__toggle:focus-visible {
+  outline: 2px solid var(--fs-gold-light);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 /* -------------------------------------------- */
@@ -998,6 +1072,10 @@ span.fs-control--end:hover {
   .fs-card,
   .fs-card__portrait {
     transition: none;
+  }
+
+  .fs-card--active {
+    animation: none;
   }
 
   @keyframes fs-banner-fade {

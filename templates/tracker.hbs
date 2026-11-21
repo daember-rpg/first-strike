@@ -7,7 +7,7 @@
   </div>
 
   {{#unless collapsed}}
-    <div class="fs-strip">
+    <div class="fs-strip" role="list" aria-label="Initiative order">
       {{#each combatants as |c|}}
         {{> first-strike-card c}}
       {{/each}}
@@ -22,7 +22,7 @@
   {{/unless}}
 
 </div>
-<div class="fs-dock-tools">
+<div class="fs-drawer {{#unless isGM}}fs-drawer--quiet{{/unless}}">
   {{#if isGM}}
     {{#if started}}
       <i class="fa-solid fa-backward-fast fs-control" data-action="previous-round" title="Previous round"></i>
@@ -30,7 +30,7 @@
       <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
       <i class="fa-solid fa-forward-step fs-control" data-action="next-turn" title="Next turn"></i>
       <i class="fa-solid fa-forward-fast fs-control" data-action="next-round" title="Next round"></i>
-      <i class="fa-solid fa-flag-checkered fs-control" data-action="end-combat" title="End encounter"></i>
+      <i class="fa-solid fa-flag-checkered fs-control fs-control--end-encounter" data-action="end-combat" title="End encounter"></i>
     {{else}}
       <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
       <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-dice-d20"></i> Begin encounter</span>
