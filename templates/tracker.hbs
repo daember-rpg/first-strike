@@ -21,22 +21,22 @@
     {{/if}}
   {{/unless}}
 
-  <div class="fs-bar__tools">
-    {{#if isGM}}
-      {{#if started}}
-        <i class="fa-solid fa-backward-fast fs-control" data-action="previous-round" title="Previous round"></i>
-        <i class="fa-solid fa-backward-step fs-control" data-action="previous-turn" title="Previous turn"></i>
-        <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
-        <i class="fa-solid fa-forward-step fs-control" data-action="next-turn" title="Next turn"></i>
-        <i class="fa-solid fa-forward-fast fs-control" data-action="next-round" title="Next round"></i>
-        <i class="fa-solid fa-flag-checkered fs-control" data-action="end-combat" title="End encounter"></i>
-      {{else}}
-        <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
-        <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-dice-d20"></i> Begin encounter</span>
-      {{/if}}
+</div>
+<div class="fs-dock-tools">
+  {{#if isGM}}
+    {{#if started}}
+      <i class="fa-solid fa-backward-fast fs-control" data-action="previous-round" title="Previous round"></i>
+      <i class="fa-solid fa-backward-step fs-control" data-action="previous-turn" title="Previous turn"></i>
+      <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
+      <i class="fa-solid fa-forward-step fs-control" data-action="next-turn" title="Next turn"></i>
+      <i class="fa-solid fa-forward-fast fs-control" data-action="next-round" title="Next round"></i>
+      <i class="fa-solid fa-flag-checkered fs-control" data-action="end-combat" title="End encounter"></i>
+    {{else}}
+      <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
+      <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-dice-d20"></i> Begin encounter</span>
     {{/if}}
-    <i class="fa-solid fa-list fs-control first-strike-tracker__mode-toggle" data-mode-toggle title="Switch to list view"></i>
-  </div>
+  {{/if}}
+  <i class="fa-solid fa-list fs-control first-strike-tracker__mode-toggle" data-mode-toggle title="Switch to list view"></i>
 </div>
 {{else}}
 <div class="fs-panel {{#if isGM}}fs-panel--gm{{/if}}">

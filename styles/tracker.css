@@ -811,17 +811,28 @@ span.fs-control--end:hover {
   background: color-mix(in srgb, var(--fs-moss) 28%, transparent);
 }
 
-/* GM controls and the view switch: dim until the bar is hovered. */
-.fs-bar__tools {
-  flex: 0 0 auto;
+/* GM controls and the view switch: a smaller pill tucked under the bar,
+   centered, the same way Kronos hangs its secondary row below its main
+   one. Quiet until the mouse is anywhere on the dock. */
+.fs-dock-tools {
   display: flex;
   align-items: center;
-  gap: 2px;
-  opacity: 0.35;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  margin: -1px auto 0;
+  padding: 4px 18px 5px;
+  background: var(--fs-glass);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--fs-hair-2);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+  opacity: 0.6;
   transition: opacity 150ms var(--fs-ease);
 }
 
-.fs-panel--bar:hover .fs-bar__tools {
+.first-strike-tracker:hover .fs-dock-tools {
   opacity: 1;
 }
 

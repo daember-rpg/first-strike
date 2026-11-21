@@ -36,7 +36,8 @@ trocar a pasta manualmente.
   etiqueta **Next** só no próximo. O nome de qualquer um aparece ao passar
   o mouse. Se a luta for maior que a tela, a faixa rola de lado (a roda do
   mouse também funciona). Os controles do GM e o ícone que alterna entre a
-  faixa e a lista vertical ficam esmaecidos até o mouse chegar na barra.
+  faixa e a lista vertical ficam numa pílula menor encaixada embaixo da
+  barra, esmaecida até o mouse chegar nela.
 - **Aviso de turno**: um banner "Your turn" com um brilho suave nas bordas
   da tela quando chega a sua vez, e um banner menor "You're up next" quando
   você é o próximo. Dá pra trocar nas configurações do módulo (só meus
