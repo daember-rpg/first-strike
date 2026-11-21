@@ -1,6 +1,7 @@
 import { FirstStrikeTracker, getActorHP } from "./tracker-app.js";
 import { MODULE_ID } from "./constants.js";
 import { ensureSocket, requestRollInitiative } from "./gm-actions.js";
+import { scheduleTurnAlert } from "./turn-alerts.js";
 
 let tracker;
 let autoSkipping = false;
@@ -40,6 +41,30 @@ function getTurnDirection(previous, current) {
 Hooks.once("init", () => {
   console.log("First Strike | Initializing");
 
+  game.settings.register(MODULE_ID, "turnAlerts", {
+    name: "Turn alerts",
+    hint: "A banner and a soft glow on your screen when it's your turn, plus a smaller banner when you're up next.",
+    scope: "client",
+    config: true,
+    type: String,
+    choices: {
+      mine: "Only my turns (and when I'm up next)",
+      all: "Every turn",
+      off: "Off"
+    },
+    default: "mine"
+  });
+
+  game.settings.register(MODULE_ID, "maskEnemyNames", {
+    name: "Hide enemy names from players",
+    hint: "Players see hostile creatures they don't own as \"Unknown creature\" with a blank portrait, in the tracker and in turn banners. The GM always sees the real names.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => renderTracker()
+  });
+
   game.keybindings.register(MODULE_ID, "nextTurn", {
     name: "First Strike: Next Turn",
     editable: [{ key: "BracketRight" }],
@@ -62,7 +87,8 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   try {
     await loadTemplates({
-      "first-strike-row": "modules/first-strike/templates/row.hbs"
+      "first-strike-row": "modules/first-strike/templates/row.hbs",
+      "first-strike-card": "modules/first-strike/templates/card.hbs"
     });
   } catch (err) {
     console.error("First Strike | failed to load row template", err);
@@ -91,37 +117,12 @@ Hooks.once("ready", async () => {
 
   tracker = new FirstStrikeTracker();
 
-  // Public API: lets Triad's "Roll Initiative" button use the same GM relay.
+  // Public API: other modules (Triad's "Roll Initiative" button, for one)
+  // can reuse the same GM relay for player initiative rolls.
   game.modules.get(MODULE_ID).api = { tracker, requestRollInitiative };
 
-  // Triad may have finished its own ready hook before or after this one.
-  if (game.triad?.api?.registerDock) dockIntoTriad(game.triad.api);
   renderTracker();
 });
-
-/* -------------------------------------------- */
-/* Triad integration                             */
-/* -------------------------------------------- */
-
-Hooks.on("triad.ready", (api) => {
-  if (tracker) dockIntoTriad(api);
-});
-
-/**
- * Moves the tracker into Triad's Initiative tab. The tab is a container
- * that survives Triad's own re-renders, so the tracker keeps rendering
- * itself exactly as before - it just lives there instead of floating.
- */
-function dockIntoTriad(api) {
-  const host = api.registerDock({
-    id: "initiative",
-    label: "Initiative",
-    icon: "fa-solid fa-dice-d20",
-    order: 30,
-    empty: "No active encounter."
-  });
-  tracker.dock(host);
-}
 
 /* -------------------------------------------- */
 /* Rendering                                     */
@@ -133,6 +134,11 @@ function renderTracker() {
 
 Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
   renderTracker();
+  // Every client, GM or not: the banner is a local, read-only cue. It
+  // waits a beat before showing so a chain of auto-skips (defeated or
+  // delaying combatants) settles on who actually acts, instead of
+  // flashing a banner for each creature passed over.
+  if ("turn" in changed || "round" in changed) scheduleTurnAlert(combat);
   // Record this on every client, not just the GM's - it's pure local
   // bookkeeping (no write), and it needs to stay current regardless of
   // who's logged in so the GM's client always has a true "who was

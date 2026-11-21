@@ -3,23 +3,25 @@
   <div class="first-strike-tracker__toggle">
     <span class="first-strike-tracker__round">{{#if started}}Round {{round}}{{else}}Preparing encounter{{/if}}</span>
     <span class="first-strike-tracker__count">{{combatantCount}} combatants</span>
-    <i class="fa-solid fa-table-cells-large first-strike-tracker__mode-toggle" data-mode-toggle title="Toggle compact view"></i>
-    <i class="fa-solid {{#if collapsed}}fa-chevron-up{{else}}fa-chevron-down{{/if}} first-strike-tracker__caret"></i>
+    <i class="fa-solid {{#if stripMode}}fa-list{{else}}fa-table-cells{{/if}} first-strike-tracker__mode-toggle" data-mode-toggle title="{{#if stripMode}}Switch to list view{{else}}Switch to strip view{{/if}}"></i>
+    <i class="fa-solid {{#if stripMode}}{{#if collapsed}}fa-chevron-down{{else}}fa-chevron-up{{/if}}{{else}}{{#if collapsed}}fa-chevron-up{{else}}fa-chevron-down{{/if}}{{/if}} first-strike-tracker__caret"></i>
   </div>
 
   {{#unless collapsed}}
-    {{#if compactMode}}
-      <div class="fs-compact">
-        {{#if activeEntry}}
-          {{> first-strike-row activeEntry}}
-        {{/if}}
-        {{#if nextEntry}}
-          <div class="fs-next-thumb" title="Next: {{nextEntry.name}}">
-            <div class="fs-next-thumb__img" style="background-image: url('{{nextEntry.img}}');"></div>
-            <span class="fs-next-thumb__label">Next</span>
-          </div>
-        {{/if}}
+    {{#if stripMode}}
+      <div class="fs-strip">
+        {{#each combatants as |c|}}
+          {{> first-strike-card c}}
+        {{/each}}
       </div>
+
+      {{#if turnBar}}
+        <div class="fs-turnbar">
+          <span class="fs-turnbar__label">{{turnBar.label}}</span>
+          <span class="fs-turnbar__btn" data-action="delay-turn" data-combatant-id="{{turnBar.id}}"><i class="fa-solid fa-hourglass-start"></i> Delay</span>
+          <span class="fs-turnbar__btn fs-turnbar__btn--end" data-action="end-turn" data-combatant-id="{{turnBar.id}}"><i class="fa-solid fa-circle-check"></i> End turn</span>
+        </div>
+      {{/if}}
     {{else}}
       <div class="fs-list">
         {{#each combatants as |c|}}

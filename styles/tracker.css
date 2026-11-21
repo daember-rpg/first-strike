@@ -1,12 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap");
 
 /* ==========================================================================
-   First Strike — Embermark dialect: smoked glass, parchment ink, a gold
+   First Strike - Embermark dialect: smoked glass, parchment ink, a gold
    thread for whoever's turn it is, ember for the dying, moss for the living.
-   Shares its token names and values with Triad/Kronos on purpose - when
-   First Strike is docked into Triad's Initiative tab (see .is-docked below)
-   it switches to reading Triad's *actual* tokens instead of its own copies,
-   so it blends in rather than merely matching by coincidence.
+   Shares its token names and values with Triad/Kronos on purpose, so the
+   whole suite reads as one family on the same screen.
    ========================================================================== */
 
 .first-strike-tracker {
@@ -508,114 +506,507 @@ span.fs-control--end:hover {
   color: var(--fs-sky);
 }
 
-/* Compact mode: only the active combatant, full detail, plus a small
-   "who's next" thumbnail beside it. */
-.fs-compact {
+/* -------------------------------------------- */
+/* Strip view: the default horizontal dock       */
+/* -------------------------------------------- */
+
+/* Top-center by default, wide enough for the whole fight, never wider
+   than the screen. Once the player drags it somewhere, the inline
+   left/top win (the script also clears the centering transform). */
+.first-strike-tracker.is-strip {
+  top: 8px;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(94vw, 980px);
+}
+
+.fs-strip {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+  /* Headroom for the initiative badges and the scaled-up active card,
+     which stick out above the row - overflow clips anything past it. */
+  padding: 22px 8px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fs-gold-line) transparent;
 }
 
-.fs-compact .fs-row {
-  flex: 1;
-  border-bottom: none;
+.fs-strip::-webkit-scrollbar {
+  height: 6px;
 }
 
-.fs-next-thumb {
+.fs-strip::-webkit-scrollbar-thumb {
+  background: var(--fs-gold-line);
+  border-radius: 3px;
+}
+
+.fs-card {
+  --fs-ring: var(--fs-hair-2);
+  flex: 0 0 auto;
+  width: 72px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
+  gap: 4px;
+  transform-origin: 50% 100%;
+  transition: transform 150ms var(--fs-ease), opacity 150ms var(--fs-ease);
 }
 
-.fs-next-thumb__img {
-  width: 28px;
-  height: 28px;
+.fs-card--friendly {
+  --fs-ring: color-mix(in srgb, var(--fs-sky) 70%, transparent);
+}
+
+.fs-card--hostile {
+  --fs-ring: color-mix(in srgb, var(--fs-ember) 70%, transparent);
+}
+
+.fs-panel--gm .fs-card {
+  cursor: pointer;
+}
+
+.fs-panel--gm .fs-card:hover {
+  transform: translateY(-2px);
+}
+
+.fs-card__art {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.fs-card__portrait {
+  position: relative;
+  width: 100%;
+  height: 100%;
   border-radius: var(--fs-radius-sm);
   background-size: cover;
   background-position: center;
   background-color: #332920;
-  box-shadow: 0 0 0 1px var(--fs-gold-line);
+  box-shadow: 0 0 0 1.5px var(--fs-ring);
+  overflow: hidden;
+  transition: filter 150ms var(--fs-ease), box-shadow 150ms var(--fs-ease);
 }
 
-.fs-next-thumb__label {
+/* Active: bigger, gold ring, soft glow - the one card you can't miss. */
+.fs-card--active {
+  transform: scale(1.14);
+  margin: 0 7px;
+}
+
+.fs-panel--gm .fs-card--active:hover {
+  transform: scale(1.14) translateY(-2px);
+}
+
+.fs-card--active .fs-card__portrait {
+  box-shadow: 0 0 0 2px var(--fs-gold), 0 0 14px rgba(212, 178, 90, 0.5);
+}
+
+.fs-card--upcoming:not(.fs-card--active) .fs-card__portrait {
+  box-shadow: 0 0 0 1.5px var(--fs-gold-line);
+}
+
+.fs-card--defeated {
+  opacity: 0.55;
+}
+
+.fs-card--defeated .fs-card__portrait {
+  filter: grayscale(1);
+}
+
+.fs-card--delayed {
+  opacity: 0.75;
+}
+
+.fs-card--hidden:not(.fs-card--active) {
+  opacity: 0.65;
+}
+
+.fs-card__mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--fs-ink);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.fs-card__mark--surprised {
+  color: var(--fs-sky);
+}
+
+/* Initiative: a small pill pinned to the portrait's corner. */
+.fs-card__badge {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  z-index: 2;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(20, 17, 15, 0.96);
+  border: 1px solid var(--fs-gold-line);
   font-family: var(--fs-font-display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fs-ink);
+}
+
+.fs-card--active .fs-card__badge {
+  background: var(--fs-gold);
+  border-color: var(--fs-gold);
+  color: var(--fs-on-gold);
+}
+
+.fs-panel--gm .fs-card__init {
+  cursor: text;
+}
+
+.fs-card__pending {
   color: var(--fs-ink-faint);
+  font-size: 10px;
+}
+
+.fs-card__roll,
+.fs-card__act-now {
+  color: var(--fs-gold);
+  font-size: 11px;
+  cursor: pointer;
+  transition: transform 150ms var(--fs-ease), color 150ms var(--fs-ease);
+}
+
+.fs-card__roll:hover,
+.fs-card__act-now:hover {
+  color: var(--fs-gold-light);
+  transform: scale(1.2);
+}
+
+.fs-card__badge .fs-row__initiative-input {
+  width: 38px;
+  height: 16px;
+  font-size: 11px;
+}
+
+.fs-card__hidden-icon {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 2;
+  font-size: 10px;
+  color: var(--fs-ink);
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+}
+
+.fs-card__surprise {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(20, 17, 15, 0.96);
+  border: 1px solid var(--fs-hair-2);
+  font-size: 9px;
+  color: var(--fs-ink-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--fs-ease), color 150ms var(--fs-ease);
+}
+
+.fs-card:hover .fs-card__surprise {
+  opacity: 1;
+}
+
+.fs-card__surprise:hover {
+  color: var(--fs-sky);
+}
+
+.fs-card__tag {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--fs-gold);
+  color: var(--fs-on-gold);
+  font-family: var(--fs-font-display);
   font-size: 8px;
-  text-transform: uppercase;
+  font-weight: 700;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 12px;
+}
+
+.fs-card__name {
+  width: 100%;
+  margin-top: 3px;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--fs-ink-dim);
+  /* Up to two lines, so long names ("Shadow Dorig Fumaca do Vale")
+     stay recognisable instead of cutting off after one word. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.fs-card--active .fs-card__name {
+  color: var(--fs-gold-light);
+  font-weight: 600;
+}
+
+.fs-card--defeated .fs-card__name {
+  text-decoration: line-through;
+  text-decoration-color: var(--fs-ink-faint);
+}
+
+.fs-card .fs-hp-bar {
+  width: 100%;
+  margin-top: 0;
+}
+
+/* The "I'm done" bar: the active player's own pass/delay controls. */
+.fs-turnbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px solid var(--fs-hair);
+  font-family: var(--fs-font-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.fs-turnbar__label {
+  color: var(--fs-gold-light);
+  font-weight: 600;
+}
+
+.fs-turnbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fs-ink-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 150ms var(--fs-ease);
+}
+
+.fs-turnbar__btn:hover {
+  color: var(--fs-gold-light);
+}
+
+.fs-turnbar__btn--end {
+  color: var(--fs-moss);
+}
+
+.fs-turnbar__btn--end:hover {
+  color: var(--fs-moss-light);
 }
 
 /* -------------------------------------------- */
-/* Docked inside Triad's Initiative tab          */
+/* Turn banner + screen glow                     */
 /* -------------------------------------------- */
 
-/* Rather than keeping its own copies of the palette while docked,
-   First Strike re-points every --fs-* token at Triad's real --tr-*
-   ones (falling back to its own value if Triad's variable somehow
-   isn't there). Docked and floating end up sharing one true source of
-   truth for the look, instead of two color palettes that merely
-   happen to agree today. */
-.first-strike-tracker.is-docked {
-  --fs-glass: transparent;
-  --fs-hair: var(--tr-hair, var(--fs-hair));
-  --fs-hair-2: var(--tr-hair-2, var(--fs-hair-2));
-  --fs-fill: var(--tr-fill, var(--fs-fill));
-  --fs-ink: var(--tr-ink, var(--fs-ink));
-  --fs-ink-dim: var(--tr-ink-dim, var(--fs-ink-dim));
-  --fs-ink-faint: var(--tr-ink-faint, var(--fs-ink-faint));
-  --fs-on-gold: var(--tr-on-gold, var(--fs-on-gold));
-  --fs-gold: var(--tr-gold, var(--fs-gold));
-  --fs-gold-light: var(--tr-gold-light, var(--fs-gold-light));
-  --fs-gold-soft: var(--tr-gold-soft, var(--fs-gold-soft));
-  --fs-gold-line: var(--tr-gold-line, var(--fs-gold-line));
-  --fs-ember: var(--tr-ember, var(--fs-ember));
-  --fs-ember-light: var(--tr-ember-light, var(--fs-ember-light));
-  --fs-moss: var(--tr-moss, var(--fs-moss));
-  --fs-sky: var(--tr-sky, var(--fs-sky));
-
-  position: static;
-  width: auto;
-  left: auto;
-  bottom: auto;
-  z-index: auto;
+/* These live on <body>, outside .first-strike-tracker, so they carry
+   the few tokens they need themselves. */
+.first-strike-banner,
+.first-strike-glow {
+  --fs-gold: #d4b25a;
+  --fs-gold-light: #ecd28a;
+  --fs-gold-line: rgba(212, 178, 90, 0.45);
+  --fs-ink: #efe3c8;
+  --fs-ink-dim: rgba(239, 227, 200, 0.62);
+  --fs-sky: #8fb0c9;
+  --fs-font-display: "Cinzel", "Palatino Linotype", serif;
 }
 
-.first-strike-tracker.is-docked .fs-panel {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  font-size: 13px;
+.first-strike-banner {
+  position: fixed;
+  top: 16vh;
+  left: 50%;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 30px 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(20, 17, 15, 0.95), rgba(20, 17, 15, 0.8));
+  border: 1px solid var(--fs-gold-line);
+  border-top-color: var(--fs-gold);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%);
 }
 
-.first-strike-tracker.is-docked .first-strike-tracker__toggle {
-  cursor: default;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--fs-hair-2);
+.first-strike-banner__portrait {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: #332920;
+  box-shadow: 0 0 0 2px var(--fs-gold), 0 0 14px rgba(212, 178, 90, 0.45);
 }
 
-.first-strike-tracker.is-docked .first-strike-tracker__caret {
-  display: none;
+.first-strike-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* Previously `max-height: none; overflow: visible;`, trusting Triad's
-   own `.triad-dock` (overflow-y: auto) to scroll the whole tab. In
-   practice, with a full party + several monsters (12 combatants),
-   entries past a certain point were rendering outside any scrollable
-   region and were simply unreachable - no scrollbar, wheel did
-   nothing. Giving the list its own bounded, scrollable height again
-   while docked means every combatant stays reachable regardless of
-   how Triad's tab container ends up sized. */
-.first-strike-tracker.is-docked .fs-list {
-  max-height: 70vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+.first-strike-banner__label {
+  font-family: var(--fs-font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fs-gold-light);
 }
 
-.first-strike-tracker.is-docked .fs-tracker-controls {
-  margin-top: 16px;
+.first-strike-banner__name {
+  font-family: var(--fs-font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--fs-ink);
+}
+
+/* "Up next": same family, quieter - it's a heads-up, not a call to act. */
+.first-strike-banner.is-next {
+  padding: 8px 22px 8px 10px;
+  border-color: color-mix(in srgb, var(--fs-sky) 55%, transparent);
+  border-top-color: var(--fs-sky);
+}
+
+.first-strike-banner.is-next .first-strike-banner__portrait {
+  width: 38px;
+  height: 38px;
+  box-shadow: 0 0 0 1.5px var(--fs-sky);
+}
+
+.first-strike-banner.is-next .first-strike-banner__label {
+  color: var(--fs-sky);
+}
+
+.first-strike-banner.is-next .first-strike-banner__name {
+  font-size: 16px;
+}
+
+.first-strike-banner.is-other {
+  border-top-color: var(--fs-gold-line);
+}
+
+.first-strike-banner.is-other .first-strike-banner__portrait {
+  box-shadow: 0 0 0 1.5px var(--fs-gold-line);
+}
+
+.first-strike-banner.is-other .first-strike-banner__label {
+  color: var(--fs-ink-dim);
+}
+
+.first-strike-banner.is-visible {
+  animation: fs-banner 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes fs-banner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(1);
+  }
+}
+
+/* A single soft gold wash around the screen edges on your own turn. */
+.first-strike-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 150px 24px rgba(212, 178, 90, 0.3);
+}
+
+.first-strike-glow.is-visible {
+  animation: fs-glow 1.6s ease-out forwards;
+}
+
+@keyframes fs-glow {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .first-strike-glow {
+    display: none;
+  }
+
+  .first-strike-banner.is-visible {
+    animation: fs-banner-fade 2.8s linear forwards;
+  }
+
+  .fs-card,
+  .fs-card__portrait {
+    transition: none;
+  }
+
+  @keyframes fs-banner-fade {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%);
+    }
+    10% {
+      opacity: 1;
+      transform: translateX(-50%);
+    }
+    80% {
+      opacity: 1;
+      transform: translateX(-50%);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-50%);
+    }
+  }
 }

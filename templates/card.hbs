@@ -1,0 +1,57 @@
+<div class="fs-card fs-card--{{disposition}} {{#if isActive}}fs-card--active{{/if}} {{#if isUpcoming}}fs-card--upcoming{{/if}} {{#if isDefeated}}fs-card--defeated{{/if}} {{#if isHidden}}fs-card--hidden{{/if}} {{#if isDelayed}}fs-card--delayed{{/if}}"
+     data-combatant-id="{{id}}"
+     title="{{name}}{{#if hpVisible}} - {{hp.value}}/{{hp.max}} HP{{/if}}">
+  <div class="fs-card__art">
+    <div class="fs-card__portrait" style="background-image: url('{{img}}');">
+      {{#if isDefeated}}
+        <i class="fa-solid fa-skull fs-card__mark" title="Defeated - turn skipped"></i>
+      {{else if isDelayed}}
+        <i class="fa-solid fa-hourglass fs-card__mark" title="Delaying"></i>
+      {{else if surprisedActive}}
+        <i class="fa-solid fa-moon fs-card__mark fs-card__mark--surprised" title="Surprised - won't act this round"></i>
+      {{/if}}
+    </div>
+
+    <div class="fs-card__badge">
+      {{#if isDelayed}}
+        {{#if canRoll}}
+          <i class="fa-solid fa-bolt fs-card__act-now" data-action="act-now" data-combatant-id="{{id}}" title="Act now"></i>
+        {{else}}
+          <i class="fa-solid fa-hourglass fs-card__pending"></i>
+        {{/if}}
+      {{else if hasInitiative}}
+        <span class="fs-card__init" title="{{#if @root.isGM}}Double-click to edit{{/if}}">{{initiative}}</span>
+      {{else if canRoll}}
+        <i class="fa-solid fa-dice-d20 fs-card__roll" data-action="roll-initiative" data-combatant-id="{{id}}" title="Roll initiative"></i>
+      {{else}}
+        <span class="fs-card__pending">-</span>
+      {{/if}}
+    </div>
+
+    {{#if isHidden}}
+      <i class="fa-solid fa-eye-slash fs-card__hidden-icon" title="Hidden from players"></i>
+    {{/if}}
+
+    {{#if canToggleSurprise}}
+      {{#unless surprisedActive}}
+        <i class="fa-regular fa-moon fs-card__surprise" data-action="toggle-surprised" data-combatant-id="{{id}}" title="Mark as surprised"></i>
+      {{/unless}}
+    {{/if}}
+
+    {{#if isUpcoming}}
+      <span class="fs-card__tag">Next</span>
+    {{/if}}
+  </div>
+
+  <div class="fs-card__name">{{name}}</div>
+
+  {{#if hpVisible}}
+    <div class="fs-hp-bar">
+      <div class="fs-hp-bar__fill fs-hp-bar__fill--{{hp.band}}" style="width: {{hp.pct}}%;"></div>
+    </div>
+  {{else if hasHp}}
+    <div class="fs-hp-bar">
+      <div class="fs-hp-bar__fill fs-hp-bar__fill--high" style="width: 100%;"></div>
+    </div>
+  {{/if}}
+</div>

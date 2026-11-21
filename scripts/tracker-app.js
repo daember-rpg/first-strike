@@ -3,7 +3,7 @@ import { requestRollInitiative, requestDelayTurn, requestActNow, requestEndTurn 
 
 export { MODULE_ID };
 const COLLAPSE_STORAGE_KEY = "first-strike-collapsed";
-const COMPACT_STORAGE_KEY = "first-strike-compact";
+const VIEW_STORAGE_KEY = "first-strike-view";
 const POSITION_STORAGE_KEY = "first-strike-position";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -72,6 +72,29 @@ export function getStatusIcons(actor) {
     .map((e) => ({ img: e.img, label: e.name }));
 }
 
+/**
+ * What a combatant looks like to the current user. With the "hide enemy
+ * names" world setting on, players see hostile creatures they don't own
+ * as an anonymous entry; the GM, and anyone who owns the creature, always
+ * sees the real thing. Shared by the tracker and the turn banners so the
+ * two can never disagree about what's being revealed.
+ */
+export function getDisplayInfo(combatant, disposition = getDisposition(combatant)) {
+  const actor = combatant.actor;
+  const masked =
+    !game.user.isGM &&
+    disposition === "hostile" &&
+    !actor?.isOwner &&
+    game.settings.get(MODULE_ID, "maskEnemyNames");
+
+  if (masked) return { name: "Unknown creature", img: "icons/svg/mystery-man.svg", masked: true };
+  return {
+    name: combatant.name,
+    img: actor?.img || combatant.img || "icons/svg/mystery-man.svg",
+    masked: false
+  };
+}
+
 export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "first-strike-tracker",
@@ -89,31 +112,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     }
   };
 
-  /** True while the tracker lives inside Triad's Initiative tab. */
-  get isDocked() {
-    return !!this._dockHost;
-  }
-
-  /**
-   * Re-parents the tracker into an external container (Triad's tab).
-   * Floating-only behaviour - saved position, viewport clamping, header
-   * dragging and collapse - is switched off while docked.
-   */
-  dock(host) {
-    if (!host || this._dockHost === host) return;
-    this._dockHost = host;
-    if (this.element) {
-      host.appendChild(this.element);
-      this.element.classList.add("is-docked");
-      this.element.style.left = "";
-      this.element.style.top = "";
-      this.element.style.bottom = "";
-    }
-    this.requestRender();
-  }
-
   get collapsed() {
-    if (this.isDocked) return false;
     return localStorage.getItem(COLLAPSE_STORAGE_KEY) === "true";
   }
 
@@ -121,24 +120,38 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? "true" : "false");
   }
 
-  get compactMode() {
-    return localStorage.getItem(COMPACT_STORAGE_KEY) === "true";
+  /**
+   * "strip" (default): a horizontal row of portraits across the top of
+   * the screen, readable at a glance without opening anything or
+   * leaving the character sheet. "list": the original vertical list.
+   */
+  get viewMode() {
+    return localStorage.getItem(VIEW_STORAGE_KEY) === "list" ? "list" : "strip";
   }
 
-  set compactMode(value) {
-    localStorage.setItem(COMPACT_STORAGE_KEY, value ? "true" : "false");
+  set viewMode(value) {
+    localStorage.setItem(VIEW_STORAGE_KEY, value === "list" ? "list" : "strip");
+  }
+
+  get isStrip() {
+    return this.viewMode === "strip";
+  }
+
+  /** Each view remembers where the player dragged it, independently. */
+  get positionKey() {
+    return this.isStrip ? `${POSITION_STORAGE_KEY}-strip` : POSITION_STORAGE_KEY;
   }
 
   getSavedPosition() {
     try {
-      return JSON.parse(localStorage.getItem(POSITION_STORAGE_KEY));
+      return JSON.parse(localStorage.getItem(this.positionKey));
     } catch {
       return null;
     }
   }
 
   setSavedPosition(pos) {
-    localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(pos));
+    localStorage.setItem(this.positionKey, JSON.stringify(pos));
   }
 
   /**
@@ -209,6 +222,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       try {
         const actor = combatant.actor;
         const disposition = getDisposition(combatant);
+        const info = getDisplayInfo(combatant, disposition);
         const hp = getActorHP(actor);
         const hasHpResource = !!hp;
         const visible = canSeeHP(actor, disposition);
@@ -222,8 +236,8 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
 
         entries.push({
           id: combatant.id,
-          name: combatant.name,
-          img: actor?.img || combatant.img || "icons/svg/mystery-man.svg",
+          name: info.name,
+          img: info.img,
           initiative: combatant.initiative,
           hasInitiative,
           canRoll,
@@ -291,8 +305,19 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       }
     }
 
+    // The "I'm done" bar under the strip: shown to whoever can act for
+    // the active combatant (the owning player, or the GM), so passing a
+    // turn or delaying never means hunting for a tiny icon on a card.
     const activeEntry = entries.find((e) => e.isActive) ?? null;
-    const nextEntry = entries.find((e) => e.isUpcoming) ?? null;
+    const turnBar =
+      started &&
+      activeEntry &&
+      activeEntry.canRoll &&
+      activeEntry.hasInitiative &&
+      !activeEntry.isDelayed &&
+      !activeEntry.isDefeated
+        ? { id: activeEntry.id, label: isGM ? `${activeEntry.name}'s turn` : "Your turn" }
+        : null;
 
     return {
       hasCombat: true,
@@ -300,11 +325,10 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       round: combat.round,
       combatantCount: entries.length,
       combatants: entries,
-      activeEntry,
-      nextEntry,
+      turnBar,
       isGM,
       collapsed: this.collapsed,
-      compactMode: this.compactMode
+      stripMode: this.isStrip
     };
   }
 
@@ -317,17 +341,15 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
   /** @override */
   async _onFirstRender(context, options) {
     await super._onFirstRender(context, options);
-    (this._dockHost ?? document.body).appendChild(this.element);
-    this.element.classList.toggle("is-docked", this.isDocked);
+    document.body.appendChild(this.element);
   }
 
   /** @override */
   _onRender(context, options) {
     super._onRender(context, options);
-    if (!this.isDocked) {
-      this._applySavedPosition();
-      this._clampToViewport();
-    }
+    this.element.classList.toggle("is-strip", this.isStrip);
+    this._applySavedPosition();
+    this._clampToViewport();
     this._animateHeightChange();
 
     this.element.querySelectorAll("[data-action]").forEach((el) => {
@@ -335,25 +357,33 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     });
 
     const header = this.element.querySelector(".first-strike-tracker__toggle");
-    if (!this.isDocked) this._makeHeaderDraggable(header);
+    this._makeHeaderDraggable(header);
 
     const modeToggle = this.element.querySelector("[data-mode-toggle]");
     modeToggle?.addEventListener("pointerdown", (event) => event.stopPropagation());
     modeToggle?.addEventListener("click", (event) => {
       event.stopPropagation();
-      this.compactMode = !this.compactMode;
+      this.viewMode = this.isStrip ? "list" : "strip";
       this.requestRender();
     });
 
-    this.element.querySelectorAll(".fs-row").forEach((row) => {
+    this.element.querySelectorAll(".fs-row, .fs-card").forEach((row) => {
       row.addEventListener("click", (event) => {
-        if (event.target.closest("[data-action], [data-mode-toggle], .fs-row__initiative, .fs-row__initiative-input")) return;
+        if (
+          event.target.closest(
+            "[data-action], [data-mode-toggle], .fs-row__initiative, .fs-card__init, .fs-row__initiative-input"
+          )
+        ) {
+          return;
+        }
         this._onRowClick(row.dataset.combatantId);
       });
     });
 
+    this._setupStrip();
+
     if (game.user.isGM) {
-      this.element.querySelectorAll(".fs-row__initiative").forEach((el) => {
+      this.element.querySelectorAll(".fs-row__initiative, .fs-card__init").forEach((el) => {
         el.addEventListener("click", (event) => event.stopPropagation());
         el.addEventListener("dblclick", (event) => {
           event.stopPropagation();
@@ -363,12 +393,51 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     }
   }
 
+  /**
+   * Clears whatever inline position the previous render (or the other
+   * view) left behind, so the stylesheet's default - top-center for the
+   * strip, bottom-left for the list - applies, then layers the player's
+   * own dragged position for the current view on top if there is one.
+   */
   _applySavedPosition() {
+    const style = this.element.style;
+    style.left = "";
+    style.top = "";
+    style.bottom = "";
+    style.transform = "";
+
     const pos = this.getSavedPosition();
     if (!pos) return;
-    this.element.style.left = `${pos.left}px`;
-    this.element.style.top = `${pos.top}px`;
-    this.element.style.bottom = "auto";
+    style.left = `${pos.left}px`;
+    style.top = `${pos.top}px`;
+    style.bottom = "auto";
+    style.transform = "none";
+  }
+
+  /**
+   * Strip view only: keeps the active card centered in the scrollable
+   * row (a long fight can be wider than the screen), and lets a plain
+   * mouse wheel scroll it sideways.
+   */
+  _setupStrip() {
+    const strip = this.element.querySelector(".fs-strip");
+    if (!strip) return;
+
+    const active = strip.querySelector(".fs-card--active");
+    if (active) {
+      strip.scrollLeft = active.offsetLeft - strip.clientWidth / 2 + active.offsetWidth / 2;
+    }
+
+    strip.addEventListener(
+      "wheel",
+      (event) => {
+        if (strip.scrollWidth <= strip.clientWidth) return;
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        strip.scrollLeft += event.deltaY;
+        event.preventDefault();
+      },
+      { passive: false }
+    );
   }
 
   /**
@@ -386,10 +455,11 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     left = Math.min(Math.max(0, left), Math.max(0, window.innerWidth - rect.width));
     top = Math.min(Math.max(0, top), Math.max(0, window.innerHeight - rect.height));
 
-    if (left !== rect.left || top !== rect.top) {
+    if (Math.abs(left - rect.left) > 0.5 || Math.abs(top - rect.top) > 0.5) {
       this.element.style.left = `${left}px`;
       this.element.style.top = `${top}px`;
       this.element.style.bottom = "auto";
+      this.element.style.transform = "none";
     }
   }
 
@@ -472,6 +542,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       this.element.style.left = `${left}px`;
       this.element.style.top = `${top}px`;
       this.element.style.bottom = "auto";
+      this.element.style.transform = "none";
     };
 
     const onPointerUp = () => {
@@ -494,7 +565,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
    * Commits on blur/Enter, cancels on Escape. GM only.
    */
   _startInitiativeEdit(labelEl) {
-    const row = labelEl.closest(".fs-row");
+    const row = labelEl.closest(".fs-row, .fs-card");
     const combatantId = row?.dataset.combatantId;
     const originalValue = labelEl.textContent.trim();
 
@@ -529,17 +600,21 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   /**
-   * GM convenience: click a row to select and pan to that token on
-   * the canvas.
+   * Click a row/card to find that token on the map. The GM also selects
+   * it. A player is only taken to tokens they can already see (their
+   * own, or ones in their line of sight) - panning to a token hidden in
+   * fog would give away where it is - and selects it only if they own it.
    */
   _onRowClick(combatantId) {
-    if (!game.user.isGM) return;
     const combat = game.combats?.active;
     const combatant = combat?.combatants.get(combatantId);
     const token = combatant?.token?.object;
     if (!token) return;
 
-    token.control({ releaseOthers: true });
+    const isGM = game.user.isGM;
+    if (!isGM && !token.visible) return;
+
+    if (isGM || token.isOwner) token.control({ releaseOthers: true });
     canvas.animatePan({ x: token.center.x, y: token.center.y });
   }
 
