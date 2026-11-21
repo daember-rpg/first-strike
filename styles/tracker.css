@@ -696,7 +696,7 @@ span.fs-control--end:hover {
   top: calc(100% + 18px);
   left: 50%;
   transform: translateX(-50%);
-  max-width: 190px;
+  max-width: none;
   padding: 1px 8px;
   border-radius: 999px;
   background: rgba(20, 17, 15, 0.92);
@@ -704,8 +704,6 @@ span.fs-control--end:hover {
   line-height: 18px;
   color: var(--fs-ink);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   opacity: 0;
   pointer-events: none;
@@ -1242,4 +1240,21 @@ span.fs-control--end:hover {
 /* Everything fits: nothing to scroll, so nothing should clip the halo. */
 .fs-strip.is-free {
   overflow: visible;
+}
+
+/* Growing portraits take their extra room from the layout, so the gap to
+   the neighbours stays the same all along the row (scale 1.25 adds 6px per
+   side to a 48px portrait, scale 1.08 adds about 2px). */
+.fs-card--active {
+  margin-inline: 6px;
+}
+
+.fs-card--next {
+  margin-inline: 2px;
+}
+
+/* One name at a time, never cut: it shows whoever is being hovered or
+   focused, and falls back to the acting combatant when nobody is. */
+.fs-strip:has(.fs-card:hover, .fs-card:focus-within) .fs-card--active:not(:hover):not(:focus-within) .fs-card__name {
+  opacity: 0;
 }
