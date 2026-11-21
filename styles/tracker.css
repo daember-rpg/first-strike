@@ -572,7 +572,7 @@ span.fs-control--end:hover {
   gap: 4px;
   /* Headroom for the Next tab and the active glow, which overflow
      would otherwise clip. */
-  padding: 12px 8px 8px;
+  padding: 16px 12px 12px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -587,10 +587,9 @@ span.fs-control--end:hover {
   mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 
-/* Every card is the same size and sits on the same line. Each one
-   carries an invisible "plate" around its portrait; the active card's
-   plate lights up gold and the next card's gets a dashed outline, so
-   state is told by shape and label as well as by color. */
+/* Every card is the same size and sits on the same line. State is told
+   by shape and label as well as by color: a bigger glowing portrait for
+   the active card, a dashed ring and tab for the next one. */
 .fs-card {
   --fs-ring: var(--fs-hair-2);
   position: relative;
@@ -601,10 +600,8 @@ span.fs-control--end:hover {
   flex-direction: column;
   gap: 4px;
   padding: 4px;
-  border: 1px solid transparent;
-  border-radius: 12px;
   opacity: 0.72;
-  transition: opacity 150ms var(--fs-ease), background 150ms var(--fs-ease), border-color 150ms var(--fs-ease);
+  transition: opacity 150ms var(--fs-ease);
 }
 
 .fs-card--friendly {
@@ -633,38 +630,41 @@ span.fs-control--end:hover {
   background-color: #332920;
   box-shadow: 0 0 0 1.5px var(--fs-ring);
   overflow: hidden;
-  transition: box-shadow 150ms var(--fs-ease), filter 150ms var(--fs-ease);
+  transition: box-shadow 150ms var(--fs-ease), filter 150ms var(--fs-ease), transform 150ms var(--fs-ease);
 }
 
-/* Whose turn it is: full brightness, a gold plate and ring, a slow
-   breathing glow. */
+/* Whose turn it is: the portrait itself grows, gets a thick gold ring
+   and a breathing glow. No plate or box, so the bar stays one surface. */
 .fs-card--active {
   opacity: 1;
-  background: var(--fs-gold-soft);
-  border-color: var(--fs-gold);
-  box-shadow: 0 0 16px rgba(212, 178, 90, 0.4);
-  animation: fs-breathe 3s ease-in-out infinite;
+  z-index: 1;
 }
 
 .fs-card--active .fs-card__portrait {
-  box-shadow: 0 0 0 2.5px var(--fs-gold);
+  transform: scale(1.2);
+  box-shadow: 0 0 0 3px var(--fs-gold), 0 0 14px 2px rgba(212, 178, 90, 0.55);
+  animation: fs-breathe 2.6s ease-in-out infinite;
 }
 
 @keyframes fs-breathe {
   0%,
   100% {
-    box-shadow: 0 0 10px rgba(212, 178, 90, 0.25);
+    box-shadow: 0 0 0 3px var(--fs-gold), 0 0 8px 1px rgba(212, 178, 90, 0.35);
   }
   50% {
-    box-shadow: 0 0 20px rgba(212, 178, 90, 0.55);
+    box-shadow: 0 0 0 3px var(--fs-gold-light), 0 0 18px 4px rgba(212, 178, 90, 0.75);
   }
 }
 
-/* Up next: a dashed plate and a readable tab, clearly secondary to the
-   active card but impossible to miss. */
+/* Up next: a dashed ring on the portrait plus the Next tab. Clearly
+   secondary to the active card, still impossible to miss. */
 .fs-card--next {
   opacity: 0.95;
-  border: 1px dashed var(--fs-gold-line);
+}
+
+.fs-card--next .fs-card__portrait {
+  outline: 2px dashed var(--fs-gold);
+  outline-offset: 2px;
 }
 
 .fs-card__next {
@@ -1074,7 +1074,7 @@ span.fs-control--end:hover {
     transition: none;
   }
 
-  .fs-card--active {
+  .fs-card--active .fs-card__portrait {
     animation: none;
   }
 
