@@ -507,12 +507,12 @@ span.fs-control--end:hover {
 }
 
 /* -------------------------------------------- */
-/* Strip view: the default horizontal dock       */
+/* Strip view: one slim bar, nothing else        */
 /* -------------------------------------------- */
 
-/* Top-center by default, wide enough for the whole fight, never wider
-   than the screen. Once the player drags it somewhere, the inline
-   left/top win (the script also clears the centering transform). */
+/* Top-center by default, never wider than the screen. Once the player
+   drags it somewhere, the inline left/top win (the script also clears
+   the centering transform). */
 .first-strike-tracker.is-strip {
   top: 8px;
   bottom: auto;
@@ -522,96 +522,118 @@ span.fs-control--end:hover {
   max-width: min(94vw, 980px);
 }
 
-.fs-strip {
+/* A single container: [round + who's acting] [portraits] [turn buttons]
+   [tools]. No nested boxes, no dividers, no scrollbar - the portraits
+   are the interface, everything else stays out of their way. */
+.fs-panel--bar {
   display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  margin-top: 4px;
-  /* Headroom for the initiative badges and the scaled-up active card,
-     which stick out above the row - overflow clips anything past it. */
-  padding: 22px 8px 6px;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 14px;
+  border-radius: 16px;
+  border-color: var(--fs-hair-2);
+}
+
+.fs-bar__lead {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  max-width: 140px;
+}
+
+.fs-bar__round {
+  font-family: var(--fs-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--fs-ink-faint);
+}
+
+.fs-bar__who {
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--fs-gold-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Room for the active glow, which overflow would otherwise clip. */
+  padding: 6px 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fs-gold-line) transparent;
+  scrollbar-width: none;
 }
 
 .fs-strip::-webkit-scrollbar {
-  height: 6px;
+  display: none;
 }
 
-.fs-strip::-webkit-scrollbar-thumb {
-  background: var(--fs-gold-line);
-  border-radius: 3px;
+.fs-strip.is-overflowing {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 
+/* Every card is the same size and sits on the same line: who's acting
+   is told by the ring and by the others receding, not by growing. */
 .fs-card {
   --fs-ring: var(--fs-hair-2);
+  position: relative;
   flex: 0 0 auto;
-  width: 72px;
+  width: 44px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  transform-origin: 50% 100%;
-  transition: transform 150ms var(--fs-ease), opacity 150ms var(--fs-ease);
+  gap: 3px;
+  opacity: 0.8;
+  transition: opacity 150ms var(--fs-ease);
 }
 
 .fs-card--friendly {
-  --fs-ring: color-mix(in srgb, var(--fs-sky) 70%, transparent);
+  --fs-ring: color-mix(in srgb, var(--fs-sky) 65%, transparent);
 }
 
 .fs-card--hostile {
-  --fs-ring: color-mix(in srgb, var(--fs-ember) 70%, transparent);
+  --fs-ring: color-mix(in srgb, var(--fs-ember) 65%, transparent);
 }
 
 .fs-panel--gm .fs-card {
   cursor: pointer;
 }
 
-.fs-panel--gm .fs-card:hover {
-  transform: translateY(-2px);
-}
-
-.fs-card__art {
-  position: relative;
-  width: 52px;
-  height: 52px;
+.fs-card:hover,
+.fs-card--active {
+  opacity: 1;
 }
 
 .fs-card__portrait {
   position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: var(--fs-radius-sm);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   background-size: cover;
   background-position: center;
   background-color: #332920;
   box-shadow: 0 0 0 1.5px var(--fs-ring);
   overflow: hidden;
-  transition: filter 150ms var(--fs-ease), box-shadow 150ms var(--fs-ease);
-}
-
-/* Active: bigger, gold ring, soft glow - the one card you can't miss. */
-.fs-card--active {
-  transform: scale(1.14);
-  margin: 0 7px;
-}
-
-.fs-panel--gm .fs-card--active:hover {
-  transform: scale(1.14) translateY(-2px);
+  transition: box-shadow 150ms var(--fs-ease), filter 150ms var(--fs-ease);
 }
 
 .fs-card--active .fs-card__portrait {
-  box-shadow: 0 0 0 2px var(--fs-gold), 0 0 14px rgba(212, 178, 90, 0.5);
-}
-
-.fs-card--upcoming:not(.fs-card--active) .fs-card__portrait {
-  box-shadow: 0 0 0 1.5px var(--fs-gold-line);
+  box-shadow: 0 0 0 2px var(--fs-gold), 0 0 10px rgba(212, 178, 90, 0.5);
 }
 
 .fs-card--defeated {
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 .fs-card--defeated .fs-card__portrait {
@@ -619,53 +641,34 @@ span.fs-control--end:hover {
 }
 
 .fs-card--delayed {
-  opacity: 0.75;
-}
-
-.fs-card--hidden:not(.fs-card--active) {
   opacity: 0.65;
 }
 
-.fs-card__mark {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: var(--fs-ink);
-  background: rgba(0, 0, 0, 0.35);
+.fs-card--hidden:not(.fs-card--active) {
+  opacity: 0.55;
 }
 
-.fs-card__mark--surprised {
-  color: var(--fs-sky);
-}
-
-/* Initiative: a small pill pinned to the portrait's corner. */
+/* Initiative: a quiet number fading in from the bottom of the portrait. */
 .fs-card__badge {
   position: absolute;
-  top: -7px;
-  left: -7px;
-  z-index: 2;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 5px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  border-radius: 999px;
-  background: rgba(20, 17, 15, 0.96);
-  border: 1px solid var(--fs-gold-line);
+  padding-bottom: 1px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
   font-family: var(--fs-font-display);
   font-size: 11px;
   font-weight: 600;
   color: var(--fs-ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .fs-card--active .fs-card__badge {
-  background: var(--fs-gold);
-  border-color: var(--fs-gold);
-  color: var(--fs-on-gold);
+  color: var(--fs-gold-light);
 }
 
 .fs-panel--gm .fs-card__init {
@@ -674,157 +677,152 @@ span.fs-control--end:hover {
 
 .fs-card__pending {
   color: var(--fs-ink-faint);
-  font-size: 10px;
-}
-
-.fs-card__roll,
-.fs-card__act-now {
-  color: var(--fs-gold);
-  font-size: 11px;
-  cursor: pointer;
-  transition: transform 150ms var(--fs-ease), color 150ms var(--fs-ease);
-}
-
-.fs-card__roll:hover,
-.fs-card__act-now:hover {
-  color: var(--fs-gold-light);
-  transform: scale(1.2);
 }
 
 .fs-card__badge .fs-row__initiative-input {
-  width: 38px;
+  width: 100%;
   height: 16px;
+  margin: 0 3px;
   font-size: 11px;
 }
 
-.fs-card__hidden-icon {
+/* The single "Next" marker - one card only, inside the portrait. */
+.fs-card__next {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  z-index: 2;
-  font-size: 10px;
-  color: var(--fs-ink);
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+  top: 0;
+  left: 0;
+  right: 0;
+  padding-top: 2px;
+  height: 14px;
+  text-align: center;
+  background: linear-gradient(rgba(0, 0, 0, 0.8), transparent);
+  font-family: var(--fs-font-display);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--fs-gold-light);
 }
 
-.fs-card__surprise {
+.fs-card__flag {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(20, 17, 15, 0.96);
-  border: 1px solid var(--fs-hair-2);
+  top: 3px;
+  z-index: 1;
   font-size: 9px;
-  color: var(--fs-ink-faint);
+  color: var(--fs-ink);
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95);
+}
+
+.fs-card__flag--left {
+  left: 3px;
+}
+
+.fs-card__flag--right {
+  right: 3px;
+}
+
+.fs-card__flag--surprised {
+  color: var(--fs-sky);
+}
+
+.fs-card__flag--toggle {
+  color: var(--fs-ink-dim);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms var(--fs-ease), color 150ms var(--fs-ease);
 }
 
-.fs-card:hover .fs-card__surprise {
+.fs-card:hover .fs-card__flag--toggle {
   opacity: 1;
 }
 
-.fs-card__surprise:hover {
+.fs-card__flag--toggle:hover {
   color: var(--fs-sky);
 }
 
-.fs-card__tag {
+/* Roll initiative / act now: the one thing worth doing on this card. */
+.fs-card__center {
   position: absolute;
-  left: 50%;
-  bottom: -5px;
-  z-index: 2;
-  transform: translateX(-50%);
-  padding: 0 5px;
-  border-radius: 3px;
-  background: var(--fs-gold);
-  color: var(--fs-on-gold);
-  font-family: var(--fs-font-display);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  line-height: 12px;
-}
-
-.fs-card__name {
-  width: 100%;
-  margin-top: 3px;
-  text-align: center;
-  font-size: 10.5px;
-  line-height: 1.2;
-  color: var(--fs-ink-dim);
-  /* Up to two lines, so long names ("Shadow Dorig Fumaca do Vale")
-     stay recognisable instead of cutting off after one word. */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.fs-card--active .fs-card__name {
-  color: var(--fs-gold-light);
-  font-weight: 600;
-}
-
-.fs-card--defeated .fs-card__name {
-  text-decoration: line-through;
-  text-decoration-color: var(--fs-ink-faint);
-}
-
-.fs-card .fs-hp-bar {
-  width: 100%;
-  margin-top: 0;
-}
-
-/* The "I'm done" bar: the active player's own pass/delay controls. */
-.fs-turnbar {
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  margin-top: 6px;
-  padding-top: 7px;
-  border-top: 1px solid var(--fs-hair);
-  font-family: var(--fs-font-display);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.fs-turnbar__label {
+  background: rgba(0, 0, 0, 0.4);
   color: var(--fs-gold-light);
-  font-weight: 600;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 150ms var(--fs-ease), color 150ms var(--fs-ease);
 }
 
-.fs-turnbar__btn {
-  display: inline-flex;
+.fs-card__center:hover {
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--fs-ink);
+}
+
+.fs-card__center--static {
+  color: var(--fs-ink-dim);
+  cursor: default;
+}
+
+/* Reserved even when empty, so every card is exactly the same height. */
+.fs-card__hp {
+  height: 3px;
+}
+
+.fs-card .fs-hp-bar {
+  height: 3px;
+  margin: 0;
+}
+
+/* Delay / End turn: two round buttons, only while it's your turn. */
+.fs-bar__turn {
+  flex: 0 0 auto;
+  display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.fs-bar__btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--fs-fill);
   color: var(--fs-ink-dim);
+  font-size: 12px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: color 150ms var(--fs-ease);
+  transition: color 150ms var(--fs-ease), background 150ms var(--fs-ease);
 }
 
-.fs-turnbar__btn:hover {
+.fs-bar__btn:hover {
   color: var(--fs-gold-light);
+  background: var(--fs-gold-soft);
 }
 
-.fs-turnbar__btn--end {
+.fs-bar__btn--end {
   color: var(--fs-moss);
+  background: color-mix(in srgb, var(--fs-moss) 16%, transparent);
 }
 
-.fs-turnbar__btn--end:hover {
+.fs-bar__btn--end:hover {
   color: var(--fs-moss-light);
+  background: color-mix(in srgb, var(--fs-moss) 28%, transparent);
+}
+
+/* GM controls and the view switch: dim until the bar is hovered. */
+.fs-bar__tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.35;
+  transition: opacity 150ms var(--fs-ease);
+}
+
+.fs-panel--bar:hover .fs-bar__tools {
+  opacity: 1;
 }
 
 /* -------------------------------------------- */

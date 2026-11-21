@@ -30,17 +30,19 @@ trocar a pasta manualmente.
 
 ## O que o módulo faz
 
-- **Faixa de iniciativa** no topo da tela: um retrato por combatente, com o
-  número de iniciativa no canto, o ativo maior e com brilho dourado, e a
-  etiqueta **Next** em quem age depois. Se a luta for maior que a tela,
-  a faixa rola de lado (a roda do mouse também funciona). O ícone no canto
-  do painel alterna entre a faixa e a lista vertical.
+- **Faixa de iniciativa** no topo da tela, numa única barra fina: um retrato
+  por combatente (todos do mesmo tamanho), com a iniciativa embaixo, o ativo
+  com anel dourado e o nome de quem está agindo na ponta esquerda, e a
+  etiqueta **Next** só no próximo. O nome de qualquer um aparece ao passar
+  o mouse. Se a luta for maior que a tela, a faixa rola de lado (a roda do
+  mouse também funciona). Os controles do GM e o ícone que alterna entre a
+  faixa e a lista vertical ficam esmaecidos até o mouse chegar na barra.
 - **Aviso de turno**: um banner "Your turn" com um brilho suave nas bordas
   da tela quando chega a sua vez, e um banner menor "You're up next" quando
   você é o próximo. Dá pra trocar nas configurações do módulo (só meus
   turnos, todos os turnos, ou desligado).
-- **Barra de fim de turno** logo abaixo da faixa pro jogador ativo: **Delay**
-  e **End turn**, sem caçar ícone pequeno.
+- **Delay** e **End turn** viram dois botões redondos na própria barra,
+  só enquanto é a vez de quem pode agir.
 - **Esconder nomes de inimigos** (configuração do mundo, desligada por
   padrão): os jogadores veem criaturas hostis que não são deles como
   "Unknown creature" com retrato em branco.

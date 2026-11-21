@@ -305,9 +305,15 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       }
     }
 
-    // The "I'm done" bar under the strip: shown to whoever can act for
-    // the active combatant (the owning player, or the GM), so passing a
-    // turn or delaying never means hunting for a tiny icon on a card.
+    // The list highlights the next two to act, but the strip marks only
+    // the very next one - two "Next" tags side by side just read as
+    // noise.
+    const firstUpcoming = entries.find((e) => e.isUpcoming);
+    if (firstUpcoming) firstUpcoming.isNext = true;
+
+    // Delay / End turn sit right in the bar for whoever can act for the
+    // active combatant (the owning player, or the GM), so passing a turn
+    // never means hunting for a tiny icon on a card.
     const activeEntry = entries.find((e) => e.isActive) ?? null;
     const turnBar =
       started &&
@@ -325,6 +331,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       round: combat.round,
       combatantCount: entries.length,
       combatants: entries,
+      activeName: activeEntry?.name ?? null,
       turnBar,
       isGM,
       collapsed: this.collapsed,
@@ -423,8 +430,12 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     const strip = this.element.querySelector(".fs-strip");
     if (!strip) return;
 
+    const overflowing = strip.scrollWidth > strip.clientWidth + 1;
+    // The soft edge fade only makes sense when something is cut off.
+    strip.classList.toggle("is-overflowing", overflowing);
+
     const active = strip.querySelector(".fs-card--active");
-    if (active) {
+    if (active && overflowing) {
       strip.scrollLeft = active.offsetLeft - strip.clientWidth / 2 + active.offsetWidth / 2;
     }
 
