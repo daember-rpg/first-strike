@@ -29,10 +29,10 @@
       <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
       <i class="fa-solid fa-forward-step fs-control" data-action="next-turn" title="Next turn"></i>
       <i class="fa-solid fa-forward-fast fs-control" data-action="next-round" title="Next round"></i>
-      <i class="fa-solid fa-flag-checkered fs-control fs-control--end-encounter" data-action="end-combat" title="End encounter"></i>
+      <i class="fa-solid fa-xmark fs-control fs-control--end-encounter" data-action="end-combat" title="End encounter"></i>
     {{else}}
       <i class="fa-solid fa-dice fs-control" data-action="roll-npc" title="Roll all NPC initiative"></i>
-      <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-dice-d20"></i> Begin encounter</span>
+      <i class="fa-solid fa-swords fs-control fs-control--begin-icon" data-action="begin-encounter" title="Begin encounter"></i>
     {{/if}}
   {{/if}}
 </div>
@@ -43,7 +43,7 @@
     <span class="first-strike-tracker__round">No active encounter</span>
   </div>
   <div class="fs-setup-body">
-    <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-dice-d20"></i> Begin encounter</span>
+    <span class="fs-control fs-control--begin" data-action="begin-encounter"><i class="fa-solid fa-swords"></i> Begin encounter</span>
   </div>
 </div>
 {{/if}}
