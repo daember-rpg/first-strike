@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.js";
+import { MODULE_ID, getActiveCombat } from "./constants.js";
 
 let socket;
 
@@ -124,7 +124,7 @@ async function withSuppressedPermissionNotice(fn) {
  * actually needs elevated permission in this world.
  */
 export async function requestRollInitiative(combatantId) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
   const userId = game.user.id;
 
@@ -155,7 +155,7 @@ export async function requestRollInitiative(combatantId) {
 }
 
 async function requestSetInitiative(combatantId, value) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
   if (game.user.isGM) return gmSetInitiative(combat.id, combatantId, value);
   const s = ensureSocket();
@@ -164,7 +164,7 @@ async function requestSetInitiative(combatantId, value) {
 }
 
 export async function requestDelayTurn(combatantId) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
   if (game.user.isGM) return gmDelayTurn(combat.id, combatantId);
   const s = ensureSocket();
@@ -173,7 +173,7 @@ export async function requestDelayTurn(combatantId) {
 }
 
 export async function requestActNow(combatantId) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
   if (game.user.isGM) return gmActNow(combat.id, combatantId);
   const s = ensureSocket();
@@ -189,7 +189,7 @@ export async function requestActNow(combatantId) {
  * in this world and needs the same GM relay.
  */
 export async function requestEndTurn(combatantId) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
   if (game.user.isGM) return gmEndTurn(combat.id, combatantId);
   const s = ensureSocket();

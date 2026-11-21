@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.js";
+import { MODULE_ID, getActiveCombat } from "./constants.js";
 import { requestRollInitiative, requestDelayTurn, requestActNow, requestEndTurn } from "./gm-actions.js";
 
 export { MODULE_ID };
@@ -170,6 +170,14 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     this._rendering = true;
     try {
       await this.render(true);
+    } catch (err) {
+      // Never fail silently: an unhandled render error used to leave the
+      // screen simply empty with nothing to say why.
+      console.error("First Strike | failed to render the tracker", err);
+      if (!this._renderErrorShown) {
+        this._renderErrorShown = true;
+        ui.notifications?.error("First Strike couldn't draw the tracker. Details are in the browser console (F12).");
+      }
     } finally {
       this._rendering = false;
       if (this._renderQueued) {
@@ -181,7 +189,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
 
   /** @override */
   async _prepareContext(_options) {
-    const combat = game.combats?.active;
+    const combat = getActiveCombat();
 
     /**
      * A combat can get combatants without going through First Strike's
@@ -633,7 +641,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       committed = true;
       const value = Number(input.value);
       if (!Number.isNaN(value)) {
-        const combat = game.combats?.active;
+        const combat = getActiveCombat();
         await combat?.combatants.get(combatantId)?.update({ initiative: value });
       }
       this.requestRender();
@@ -656,7 +664,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
    * fog would give away where it is - and selects it only if they own it.
    */
   _onRowClick(combatantId) {
-    const combat = game.combats?.active;
+    const combat = getActiveCombat();
     const combatant = combat?.combatants.get(combatantId);
     const token = combatant?.token?.object;
     if (!token) return;
@@ -671,7 +679,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
   async _onControlClick(event) {
     const action = event.currentTarget.dataset.action;
     const combatantId = event.currentTarget.dataset.combatantId;
-    const combat = game.combats?.active;
+    const combat = getActiveCombat();
 
     if (action === "begin-encounter") {
       await this._beginEncounter();
@@ -760,7 +768,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
    */
   async _beginEncounter() {
     const tokens = canvas.tokens?.controlled ?? [];
-    let combat = game.combats?.active;
+    let combat = getActiveCombat();
 
     if (!combat) {
       if (!tokens.length) {

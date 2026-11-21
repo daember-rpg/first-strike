@@ -44,6 +44,10 @@ trocar a pasta manualmente.
   turnos, todos os turnos, ou desligado).
 - **Delay** e **End turn** viram dois botões redondos na própria barra,
   só enquanto é a vez de quem pode agir.
+- **Rolar iniciativa dos inimigos automaticamente** (configuração do mundo,
+  ligada por padrão): ao entrar no combate, criaturas sem dono jogador têm a
+  iniciativa rolada na hora (secreta, só o GM vê). Jogadores continuam rolando
+  os próprios dados. Desligue nas configurações do módulo para rolar à mão.
 - **Esconder nomes de inimigos** (configuração do mundo, desligada por
   padrão): os jogadores veem criaturas hostis que não são deles como
   "Unknown creature" com retrato em branco.

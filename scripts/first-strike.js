@@ -1,5 +1,5 @@
 import { FirstStrikeTracker, getActorHP } from "./tracker-app.js";
-import { MODULE_ID } from "./constants.js";
+import { MODULE_ID, getActiveCombat } from "./constants.js";
 import { ensureSocket, requestRollInitiative } from "./gm-actions.js";
 import { scheduleTurnAlert } from "./turn-alerts.js";
 
@@ -55,6 +55,15 @@ Hooks.once("init", () => {
     default: "mine"
   });
 
+  game.settings.register(MODULE_ID, "autoRollNPCs", {
+    name: "Auto-roll enemy initiative",
+    hint: "The moment a creature with no player owner joins an encounter, its initiative is rolled for you (whispered to GMs). Players still roll their own. Turn this off to roll enemies yourself with the dice button.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register(MODULE_ID, "maskEnemyNames", {
     name: "Hide enemy names from players",
     hint: "Players see hostile creatures they don't own as \"Unknown creature\" with a blank portrait, in the tracker and in turn banners. The GM always sees the real names.",
@@ -70,7 +79,7 @@ Hooks.once("init", () => {
     editable: [{ key: "BracketRight" }],
     restricted: true,
     onDown: () => {
-      game.combats?.active?.nextTurn();
+      getActiveCombat()?.nextTurn();
     }
   });
 
@@ -79,7 +88,7 @@ Hooks.once("init", () => {
     editable: [{ key: "BracketLeft" }],
     restricted: true,
     onDown: () => {
-      game.combats?.active?.previousTurn();
+      getActiveCombat()?.previousTurn();
     }
   });
 });
@@ -170,8 +179,59 @@ Hooks.on("deleteCombat", (combat) => {
   Hooks.callAll("firstStrike.combatEnded", combat);
 });
 
+/**
+ * Auto-roll for enemies: combatants without a player owner that join an
+ * encounter are queued, then rolled together a beat later (adding a whole
+ * group of tokens fires one create event per token). Runs only on the
+ * active GM's client so a table with two GMs doesn't roll everything
+ * twice, and only touches combatants that still have no initiative.
+ */
+const pendingAutoRolls = new Map();
+let autoRollTimer = null;
+
+function isActiveGM() {
+  if (!game.user.isGM) return false;
+  const active = game.users.activeGM;
+  return !active || active.isSelf;
+}
+
+function queueAutoRoll(combatant) {
+  if (!game.settings.get(MODULE_ID, "autoRollNPCs") || !isActiveGM()) return;
+  if (combatant.hasPlayerOwner || combatant.initiative != null) return;
+  const combat = combatant.combat;
+  if (!combat) return;
+
+  if (!pendingAutoRolls.has(combat)) pendingAutoRolls.set(combat, new Set());
+  pendingAutoRolls.get(combat).add(combatant.id);
+
+  clearTimeout(autoRollTimer);
+  autoRollTimer = setTimeout(flushAutoRolls, 150);
+}
+
+async function flushAutoRolls() {
+  const batches = [...pendingAutoRolls];
+  pendingAutoRolls.clear();
+  for (const [combat, ids] of batches) {
+    const todo = [...ids].filter((id) => combat.combatants.get(id)?.initiative == null);
+    if (!todo.length) continue;
+    try {
+      // Whispered so the table doesn't see the monsters' numbers in
+      // chat. The two option spellings are for different Foundry
+      // versions; each one ignores the other.
+      await combat.rollInitiative(todo, {
+        messageMode: "gm",
+        messageOptions: { rollMode: "gmroll" },
+        skipDialog: true
+      });
+    } catch (err) {
+      console.error("First Strike | auto-roll of enemy initiative failed", err);
+    }
+  }
+}
+
 Hooks.on("createCombatant", async (combatant) => {
   renderTracker();
+  queueAutoRoll(combatant);
   // A monster added mid-fight (via Foundry's own right-click menu or
   // its native combat tracker, not just First Strike's own button)
   // re-sorts the turn order the moment its initiative is set. Without
@@ -325,7 +385,7 @@ async function resyncActiveCombatant(combat) {
  * generate loot mid-fight.
  */
 async function syncDefeatedState(actor) {
-  const combat = game.combats?.active;
+  const combat = getActiveCombat();
   if (!combat) return;
 
   const hp = getActorHP(actor);

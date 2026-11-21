@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.js";
+import { MODULE_ID, getActiveCombat } from "./constants.js";
 import { getDisplayInfo } from "./tracker-app.js";
 
 const BANNER_ID = "first-strike-banner";
@@ -51,7 +51,7 @@ function announce(combat) {
   try {
     const mode = game.settings.get(MODULE_ID, "turnAlerts");
     if (mode === "off") return;
-    if (!combat?.started || game.combats?.active?.id !== combat.id) return;
+    if (!combat?.started || getActiveCombat()?.id !== combat.id) return;
 
     const current = combat.combatant;
     if (!current || isSkippable(current, combat)) return;
