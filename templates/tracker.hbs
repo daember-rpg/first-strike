@@ -1,5 +1,6 @@
 {{#if hasCombat}}
 {{#if stripMode}}
+<div class="fs-stack">
 <div class="fs-panel fs-panel--bar {{#if isGM}}fs-panel--gm{{/if}}">
   <div class="first-strike-tracker__toggle fs-bar__lead" title="Drag to move - click to collapse">
     <span class="fs-bar__round">{{#if started}}Round {{round}}{{else}}Preparing{{/if}}</span>
@@ -37,6 +38,7 @@
     {{/if}}
   {{/if}}
   <i class="fa-solid fa-list fs-control first-strike-tracker__mode-toggle" data-mode-toggle title="Switch to list view"></i>
+</div>
 </div>
 {{else}}
 <div class="fs-panel {{#if isGM}}fs-panel--gm{{/if}}">
