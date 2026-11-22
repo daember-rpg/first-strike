@@ -118,10 +118,6 @@ embaixo, que ganha força quando o mouse chega perto.
   fecha de novo. O grupo fica sempre aberto enquanto um de seus membros estiver
   agindo, para o turno ser exato. É uma preferência de cada pessoa
   (Configurações → "Group identical enemies").
-- **Arrastar para reordenar (GM):** arraste um retrato para outro lugar da fila
-  e o número de iniciativa é calculado para ele ficar ali (no meio dos dois
-  vizinhos). Se os vizinhos tiverem o mesmo número, não existe número entre
-  eles e o módulo avisa para você dar um número diferente a um deles.
 - **Lembretes de round (GM):** o botão de sino na pílula de ferramentas abre um
   painel para criar lembretes ("o efeito de lentidão termina") para daqui a N
   rounds, uma vez ou repetindo a cada N rounds. Quando o round começa, o

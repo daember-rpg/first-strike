@@ -1410,39 +1410,6 @@ span.fs-control--end:hover {
   opacity: 1;
 }
 
-/* Drag to reorder (GM): the dragged portrait dims and a gold bar shows
-   where it will land. */
-.fs-card.is-dragging {
-  opacity: 0.35;
-}
-
-.fs-card.is-drop-before::before,
-.fs-card.is-drop-after::after {
-  content: "";
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  height: auto;
-  width: 3px;
-  border: 0;
-  border-radius: 3px;
-  background: var(--fs-gold);
-  box-shadow: 0 0 10px rgba(212, 178, 90, 0.8);
-  opacity: 1;
-  transform: none;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.fs-card.is-drop-before::before {
-  left: -13px;
-}
-
-.fs-card.is-drop-after::after {
-  left: auto;
-  right: -13px;
-}
-
 /* Drawer toggles that are "on": reminders waiting, camera following. */
 .fs-control.has-reminders,
 .fs-control.is-on {

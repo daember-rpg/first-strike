@@ -500,7 +500,6 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     this._setupStrip();
 
     if (game.user.isGM) {
-      this._setupCardDragging();
       this.element.querySelectorAll(".fs-card").forEach((card) => {
         card.addEventListener("contextmenu", (event) => {
           event.preventDefault();
@@ -729,104 +728,6 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       }
     });
     input.addEventListener("blur", commit);
-  }
-
-  /**
-   * GM: drag a portrait to a new spot in the row and the initiative
-   * number is worked out for you - halfway between the two neighbours it
-   * lands between (or one above/below at either end). Groups can't be
-   * dragged; open one first.
-   */
-  _setupCardDragging() {
-    const strip = this.element.querySelector(".fs-strip");
-    if (!strip) return;
-    const cards = () => [...strip.querySelectorAll(".fs-card")];
-    const clearMarks = () =>
-      cards().forEach((c) => c.classList.remove("is-drop-before", "is-drop-after", "is-dragging"));
-
-    let draggedId = null;
-
-    cards().forEach((card) => {
-      if (card.dataset.stack) return;
-      card.draggable = true;
-      card.addEventListener("dragstart", (event) => {
-        draggedId = card.dataset.combatantId;
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", draggedId);
-        card.classList.add("is-dragging");
-      });
-      card.addEventListener("dragend", () => {
-        draggedId = null;
-        clearMarks();
-      });
-    });
-
-    const dropTarget = (clientX) => {
-      const others = cards().filter((c) => c.dataset.combatantId !== draggedId);
-      for (const card of others) {
-        const rect = card.getBoundingClientRect();
-        if (clientX < rect.left + rect.width / 2) return { card, before: true, others };
-      }
-      return { card: others[others.length - 1] ?? null, before: false, others };
-    };
-
-    strip.addEventListener("dragover", (event) => {
-      if (!draggedId) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      const { card, before } = dropTarget(event.clientX);
-      cards().forEach((c) => c.classList.remove("is-drop-before", "is-drop-after"));
-      card?.classList.add(before ? "is-drop-before" : "is-drop-after");
-    });
-
-    strip.addEventListener("drop", async (event) => {
-      if (!draggedId) return;
-      event.preventDefault();
-      const id = draggedId;
-      const { card, before, others } = dropTarget(event.clientX);
-      clearMarks();
-      draggedId = null;
-      if (!card) return;
-
-      const position = others.indexOf(card) + (before ? 0 : 1);
-      const number = (c) => {
-        const min = Number(c.dataset.initMin);
-        const max = Number(c.dataset.initMax);
-        return { min: Number.isFinite(min) && c.dataset.initMin !== "" ? min : null, max: Number.isFinite(max) && c.dataset.initMax !== "" ? max : null };
-      };
-      // Nearest rolled neighbour on each side (unrolled ones are skipped).
-      let above = null;
-      for (let k = position - 1; k >= 0 && above === null; k--) above = number(others[k]).min;
-      let below = null;
-      for (let k = position; k < others.length && below === null; k++) below = number(others[k]).max;
-
-      const value = this._initiativeBetween(above, below);
-      if (value === null) return;
-      if (value === undefined) {
-        ui.notifications?.info(
-          "Those two share the same initiative, so there's no number between them. Give one of them a different number first (double-click it)."
-        );
-        return;
-      }
-      const combatant = getActiveCombat()?.combatants.get(id);
-      if (combatant && combatant.initiative !== value) await combatant.update({ initiative: value });
-    });
-  }
-
-  /**
-   * A number that sorts between `above` (higher, earlier in the row) and
-   * `below` (lower, later). Returns null when there's nothing to compare
-   * against, and undefined when the neighbours are tied (no number fits).
-   */
-  _initiativeBetween(above, below) {
-    if (above === null && below === null) return null;
-    if (above === null) return Math.floor(below) + 1;
-    if (below === null) return Math.ceil(above) - 1;
-    if (above === below) return undefined;
-    if (above < below) return undefined;
-    const gap = above - below;
-    if (gap >= 2) return Math.floor((above + below) / 2);
-    return Math.round(((above + below) / 2) * 100) / 100;
   }
 
   /**
