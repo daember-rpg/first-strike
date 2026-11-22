@@ -98,3 +98,14 @@ começo da fila e serve de alça para arrastar. Nomes dos demais aparecem ao
 passar o mouse; o número de iniciativa é sempre visível para o GM e, para
 jogadores, ao passar o mouse. As ferramentas do GM ficam numa pílula discreta
 embaixo, que ganha força quando o mouse chega perto.
+
+## Qualidade de vida (1.7)
+
+- **Menu com botão direito (GM):** clique com o botão direito num retrato para
+  definir ou editar a iniciativa, rolar de novo, marcar como derrotado ou vivo,
+  esconder ou revelar dos jogadores, abrir a ficha ou remover do encontro.
+  Dar dois cliques no número da iniciativa continua funcionando.
+- **Ordem automática:** se você muda a iniciativa de alguém **antes de qualquer
+  turno ter sido jogado** (rodada 1, turno ainda no primeiro da fila), o turno
+  passa para quem ficou em primeiro. Depois que o jogo andou, mudar um número
+  só reordena a fila: o turno continua com quem está agindo.

@@ -408,6 +408,12 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     this._setupStrip();
 
     if (game.user.isGM) {
+      this.element.querySelectorAll(".fs-card").forEach((card) => {
+        card.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          this._openCardMenu(event, card);
+        });
+      });
       this.element.querySelectorAll(".fs-row__initiative, .fs-card__init").forEach((el) => {
         el.addEventListener("click", (event) => event.stopPropagation());
         el.addEventListener("dblclick", (event) => {
@@ -629,6 +635,126 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       }
     });
     input.addEventListener("blur", commit);
+  }
+
+  /**
+   * Right-click a portrait (GM only) for the things you otherwise have to
+   * dig for: set or reroll initiative, mark defeated, hide, open the
+   * sheet, remove from the fight. A small hand-built menu keeps it
+   * independent of Foundry's own context-menu API, which changes
+   * between versions.
+   */
+  _openCardMenu(event, card) {
+    this._closeCardMenu();
+    const combat = getActiveCombat();
+    const combatant = combat?.combatants.get(card.dataset.combatantId);
+    if (!combatant) return;
+
+    const hidden = combatant.token?.hidden ?? false;
+    const hasInitiative = combatant.initiative !== null && combatant.initiative !== undefined;
+    const items = [
+      {
+        icon: "fa-pen",
+        label: hasInitiative ? "Edit initiative" : "Set initiative",
+        run: () => {
+          const target = card.querySelector(".fs-card__init, .fs-card__pending");
+          if (target) this._startInitiativeEdit(target);
+        }
+      },
+      {
+        icon: "fa-dice-d20",
+        label: hasInitiative ? "Reroll initiative" : "Roll initiative",
+        run: () => requestRollInitiative(combatant.id)
+      },
+      {
+        icon: "fa-skull",
+        label: combatant.isDefeated ? "Mark as alive" : "Mark as defeated",
+        run: async () => {
+          const defeated = !combatant.isDefeated;
+          await combatant.update({ defeated });
+          await combatant.actor?.toggleStatusEffect?.(CONFIG.specialStatusEffects.DEFEATED, {
+            active: defeated,
+            overlay: true
+          });
+        }
+      },
+      {
+        icon: hidden ? "fa-eye" : "fa-eye-slash",
+        label: hidden ? "Reveal to players" : "Hide from players",
+        run: () => combatant.token?.update({ hidden: !hidden })
+      },
+      {
+        icon: "fa-user",
+        label: "Open sheet",
+        run: () => combatant.actor?.sheet?.render(true)
+      },
+      {
+        icon: "fa-xmark",
+        label: "Remove from encounter",
+        danger: true,
+        run: () => combatant.delete()
+      }
+    ];
+
+    const menu = document.createElement("div");
+    menu.className = "first-strike-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", combatant.name);
+
+    const title = document.createElement("div");
+    title.className = "first-strike-menu__title";
+    title.textContent = combatant.name;
+    menu.append(title);
+
+    for (const item of items) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `first-strike-menu__item${item.danger ? " is-danger" : ""}`;
+      button.setAttribute("role", "menuitem");
+      const icon = document.createElement("i");
+      icon.className = `fa-solid ${item.icon}`;
+      icon.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      button.append(icon, label);
+      button.addEventListener("click", async () => {
+        this._closeCardMenu();
+        try {
+          await item.run();
+        } catch (err) {
+          console.error("First Strike | menu action failed", err);
+          ui.notifications?.error("First Strike: that action failed. Details are in the console (F12).");
+        }
+      });
+      menu.append(button);
+    }
+
+    document.body.append(menu);
+    const margin = 8;
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(margin, Math.min(event.clientX, window.innerWidth - rect.width - margin))}px`;
+    menu.style.top = `${Math.max(margin, Math.min(event.clientY, window.innerHeight - rect.height - margin))}px`;
+    menu.querySelector("button")?.focus();
+
+    const close = (e) => {
+      if (e?.type === "keydown" && e.key !== "Escape") return;
+      if (e?.type === "pointerdown" && menu.contains(e.target)) return;
+      this._closeCardMenu();
+    };
+    this._menuCleanup = () => {
+      document.removeEventListener("pointerdown", close, true);
+      document.removeEventListener("keydown", close, true);
+      window.removeEventListener("blur", close);
+      menu.remove();
+    };
+    document.addEventListener("pointerdown", close, true);
+    document.addEventListener("keydown", close, true);
+    window.addEventListener("blur", close);
+  }
+
+  _closeCardMenu() {
+    this._menuCleanup?.();
+    this._menuCleanup = null;
   }
 
   /**

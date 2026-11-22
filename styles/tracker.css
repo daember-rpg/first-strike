@@ -1258,3 +1258,74 @@ span.fs-control--end:hover {
 .fs-strip:has(.fs-card:hover, .fs-card:focus-within) .fs-card--active:not(:hover):not(:focus-within) .fs-card__name {
   opacity: 0;
 }
+
+/* Right-click menu on a portrait (GM). Lives on <body>, so it carries its
+   own tokens like the turn banner does. */
+.first-strike-menu {
+  --fs-menu-ink: #efe6d2;
+  --fs-menu-dim: #b9ad92;
+  --fs-menu-gold: #d4b25a;
+  position: fixed;
+  z-index: 10000;
+  min-width: 200px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(212, 178, 90, 0.35);
+  border-radius: 12px;
+  background: rgba(20, 17, 15, 0.92);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  color: var(--fs-menu-ink);
+  font-size: 13px;
+}
+
+.first-strike-menu__title {
+  padding: 4px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--fs-menu-gold);
+  border-bottom: 1px solid rgba(212, 178, 90, 0.2);
+  margin-bottom: 4px;
+}
+
+.first-strike-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.first-strike-menu__item i {
+  width: 16px;
+  text-align: center;
+  color: var(--fs-menu-dim);
+}
+
+.first-strike-menu__item:hover,
+.first-strike-menu__item:focus-visible {
+  background: rgba(212, 178, 90, 0.16);
+  outline: none;
+}
+
+.first-strike-menu__item:focus-visible {
+  box-shadow: 0 0 0 2px var(--fs-menu-gold);
+}
+
+.first-strike-menu__item.is-danger,
+.first-strike-menu__item.is-danger i {
+  color: #e58a74;
+}

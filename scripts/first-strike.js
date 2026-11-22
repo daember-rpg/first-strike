@@ -13,6 +13,9 @@ let autoSkipping = false;
  */
 const lastActiveCombatantId = new Map();
 
+/** Who sat at the top of the turn order (first one who really acts) at the last change. */
+const lastTopCombatantId = new Map();
+
 /**
  * Tracks, per combat, the {round, turn} pair from the previous
  * "updateCombat" event, purely so the next one can tell whether the
@@ -129,6 +132,17 @@ Hooks.once("ready", async () => {
   // can reuse the same GM relay for player initiative rolls.
   game.modules.get(MODULE_ID).api = { tracker, requestRollInitiative };
 
+  // Seed the bookkeeping for a fight that was already running when the
+  // page loaded, so the first edit after a refresh behaves correctly.
+  try {
+    for (const combat of Array.from(game.combats?.values?.() ?? [])) {
+      lastActiveCombatantId.set(combat.id, combat.combatant?.id ?? null);
+      rememberTopCombatant(combat);
+    }
+  } catch (err) {
+    console.error("First Strike | couldn't read existing combats", err);
+  }
+
   renderTracker();
 });
 
@@ -152,6 +166,7 @@ Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
   // who's logged in so the GM's client always has a true "who was
   // active a moment ago" to compare against in resyncActiveCombatant.
   lastActiveCombatantId.set(combat.id, combat.combatant?.id ?? null);
+  rememberTopCombatant(combat);
 
   if (!game.user.isGM) return;
   if ("turn" in changed || "round" in changed) {
@@ -234,11 +249,16 @@ Hooks.on("createCombatant", async (combatant) => {
   // re-sorts the turn order the moment its initiative is set. Without
   // this, that re-sort can silently hand the "active" turn to the
   // wrong combatant - see resyncActiveCombatant for the full story.
-  if (game.user.isGM) await resyncActiveCombatant(combatant.combat);
+  if (game.user.isGM) {
+    const moved = await followNewTopCombatant(combatant.combat);
+    if (!moved) await resyncActiveCombatant(combatant.combat);
+  }
+  rememberTopCombatant(combatant.combat);
 });
 Hooks.on("deleteCombatant", async (combatant) => {
   renderTracker();
   if (game.user.isGM) await resyncActiveCombatant(combatant.combat);
+  rememberTopCombatant(combatant.combat);
 });
 Hooks.on("updateCombatant", async (combatant, changed, _options, _userId) => {
   renderTracker();
@@ -249,9 +269,16 @@ Hooks.on("updateCombatant", async (combatant, changed, _options, _userId) => {
     await autoSkipCombatants(combatant.combat);
   }
   if ("initiative" in changed) {
-    await resnapOpeningTurn(combatant.combat);
-    await resyncActiveCombatant(combatant.combat);
+    // Before anyone has acted, the turn belongs to whoever is on top of
+    // the order - so changing a number that reshuffles the top hands the
+    // turn to the new first, instead of leaving it on the old one.
+    const moved = await followNewTopCombatant(combatant.combat);
+    if (!moved) {
+      await resnapOpeningTurn(combatant.combat);
+      await resyncActiveCombatant(combatant.combat);
+    }
   }
+  rememberTopCombatant(combatant.combat);
 });
 
 Hooks.on("updateActor", (actor, changed, _options, _userId) => {
@@ -272,6 +299,48 @@ Hooks.on("updateToken", (tokenDoc, changed) => {
 
 Hooks.on("createActiveEffect", renderTracker);
 Hooks.on("deleteActiveEffect", renderTracker);
+
+/** Same notion of "gets skipped" as the auto-skip. */
+function isSkippableNow(combatant, combat) {
+  const hidden = combatant.token?.hidden ?? false;
+  const delayed = combatant.getFlag(MODULE_ID, "delayed") ?? false;
+  const surprised = (combatant.getFlag(MODULE_ID, "surprised") ?? false) && combat.round === 1;
+  return combatant.isDefeated || hidden || delayed || surprised;
+}
+
+function firstActingCombatant(combat) {
+  return combat.turns.find((c) => !isSkippableNow(c, combat)) ?? null;
+}
+
+function rememberTopCombatant(combat) {
+  if (!combat) return;
+  lastTopCombatantId.set(combat.id, firstActingCombatant(combat)?.id ?? null);
+}
+
+/**
+ * In round 1, while the pointer is still on the combatant who was on top
+ * of the order (so nobody has taken a turn yet), a changed initiative
+ * that reshuffles the top must move the pointer to the new first one.
+ * Once anybody has acted this never fires, so editing a number mid-round
+ * keeps the turn with whoever is acting (resyncActiveCombatant). Returns
+ * true when it moved the turn.
+ */
+async function followNewTopCombatant(combat) {
+  if (!combat || !combat.started || combat.round !== 1) return false;
+
+  const previousTop = lastTopCombatantId.get(combat.id);
+  const activeBefore = lastActiveCombatantId.get(combat.id);
+  if (!previousTop || activeBefore !== previousTop) return false;
+
+  const newTop = firstActingCombatant(combat);
+  if (!newTop || newTop.id === previousTop) return false;
+
+  const index = combat.turns.findIndex((c) => c.id === newTop.id);
+  if (index < 0 || index === combat.turn) return false;
+
+  await combat.update({ turn: index });
+  return true;
+}
 
 /**
  * Begin Encounter no longer auto-rolls, so it's normal for rolls to
