@@ -1,4 +1,6 @@
 import { MODULE_ID, getActiveCombat } from "./constants.js";
+import { getReminders, openRemindersPanel, closeRemindersPanel } from "./reminders.js";
+import { panToActive } from "./camera.js";
 import { requestRollInitiative, requestDelayTurn, requestActNow, requestEndTurn } from "./gm-actions.js";
 
 export { MODULE_ID };
@@ -96,6 +98,9 @@ export function getDisplayInfo(combatant, disposition = getDisposition(combatant
 }
 
 export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2) {
+  /** Leader ids of enemy stacks the user has opened up (a view-only choice). */
+  expandedStacks = new Set();
+
   static DEFAULT_OPTIONS = {
     id: "first-strike-tracker",
     tag: "div",
@@ -249,6 +254,8 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
           surprisedActive: surprised && combat.round === 1,
           canToggleSurprise: isGM && combat.round === 1,
           disposition,
+          actorKey: actor?.id ?? null,
+          hasPlayerOwner: !!combatant.hasPlayerOwner,
           statusIcons: getStatusIcons(actor),
           hasHp: hasHpResource,
           hpVisible: visible && hasHpResource,
@@ -330,13 +337,81 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       started,
       round: combat.round,
       combatantCount: entries.length,
-      combatants: entries,
+      combatants: this._stackEntries(entries),
       activeName: activeEntry?.name ?? null,
       turnBar,
       isGM,
       collapsed: this.collapsed,
-      stripMode: this.isStrip
+      stripMode: this.isStrip,
+      reminderCount: isGM ? getReminders(combat).length : 0,
+      followCamera: game.settings.get(MODULE_ID, "followCamera")
     };
+  }
+
+  /**
+   * Runs of identical enemies that sit next to each other in the order
+   * (same actor, hostile, no player owner, all rolled, nobody defeated or
+   * delaying) collapse into one portrait with a count, so a pack of
+   * goblins doesn't fill the bar. The order itself is never rearranged:
+   * only neighbours are merged. A run that contains whoever is acting is
+   * always shown open so the current turn is exact, and a click opens any
+   * other run.
+   */
+  _stackEntries(entries) {
+    const withRange = (e) => ({ ...e, initMin: e.initiative, initMax: e.initiative });
+    if (!game.settings.get(MODULE_ID, "stackEnemies")) return entries.map(withRange);
+
+    const stackable = (e) =>
+      e.disposition === "hostile" &&
+      !e.hasPlayerOwner &&
+      !e.isDefeated &&
+      !e.isDelayed &&
+      e.hasInitiative &&
+      !!e.actorKey;
+
+    const out = [];
+    let i = 0;
+    while (i < entries.length) {
+      const first = entries[i];
+      let j = i + 1;
+      if (stackable(first)) {
+        while (j < entries.length && stackable(entries[j]) && entries[j].actorKey === first.actorKey) j++;
+      }
+      const run = entries.slice(i, j);
+      i = j;
+
+      if (run.length < 2) {
+        out.push(withRange(run[0]));
+        continue;
+      }
+
+      const values = run.map((r) => r.initiative);
+      const range = { initMin: Math.min(...values), initMax: Math.max(...values) };
+      const holdsActive = run.some((r) => r.isActive);
+      const open = holdsActive || this.expandedStacks.has(run[0].id);
+
+      if (open) {
+        run.forEach((r, k) => {
+          out.push({ ...r, initMin: r.initiative, initMax: r.initiative, ...(k === 0 ? { canCollapse: !holdsActive } : {}) });
+        });
+        continue;
+      }
+
+      out.push({
+        ...run[0],
+        ...range,
+        stackCount: run.length,
+        stackIds: run.map((r) => r.id).join(","),
+        isNext: run.some((r) => r.isNext),
+        isUpcoming: run.some((r) => r.isUpcoming),
+        hpVisible: false,
+        hasHp: false,
+        hp: null,
+        canToggleSurprise: false,
+        surprisedActive: false
+      });
+    }
+    return out;
   }
 
   /** @override */
@@ -401,16 +476,35 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
         ) {
           return;
         }
+        if (row.dataset.stack) {
+          this.expandedStacks.add(row.dataset.combatantId);
+          this.requestRender();
+          return;
+        }
         this._onRowClick(row.dataset.combatantId);
+      });
+    });
+
+    // A collapsed group is a keyboard control too.
+    this.element.querySelectorAll(".fs-card[data-stack]").forEach((card) => {
+      card.tabIndex = 0;
+      card.setAttribute("aria-expanded", "false");
+      card.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.expandedStacks.add(card.dataset.combatantId);
+        this.requestRender();
       });
     });
 
     this._setupStrip();
 
     if (game.user.isGM) {
+      this._setupCardDragging();
       this.element.querySelectorAll(".fs-card").forEach((card) => {
         card.addEventListener("contextmenu", (event) => {
           event.preventDefault();
+          if (card.dataset.stack) return;
           this._openCardMenu(event, card);
         });
       });
@@ -638,6 +732,104 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   /**
+   * GM: drag a portrait to a new spot in the row and the initiative
+   * number is worked out for you - halfway between the two neighbours it
+   * lands between (or one above/below at either end). Groups can't be
+   * dragged; open one first.
+   */
+  _setupCardDragging() {
+    const strip = this.element.querySelector(".fs-strip");
+    if (!strip) return;
+    const cards = () => [...strip.querySelectorAll(".fs-card")];
+    const clearMarks = () =>
+      cards().forEach((c) => c.classList.remove("is-drop-before", "is-drop-after", "is-dragging"));
+
+    let draggedId = null;
+
+    cards().forEach((card) => {
+      if (card.dataset.stack) return;
+      card.draggable = true;
+      card.addEventListener("dragstart", (event) => {
+        draggedId = card.dataset.combatantId;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedId);
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => {
+        draggedId = null;
+        clearMarks();
+      });
+    });
+
+    const dropTarget = (clientX) => {
+      const others = cards().filter((c) => c.dataset.combatantId !== draggedId);
+      for (const card of others) {
+        const rect = card.getBoundingClientRect();
+        if (clientX < rect.left + rect.width / 2) return { card, before: true, others };
+      }
+      return { card: others[others.length - 1] ?? null, before: false, others };
+    };
+
+    strip.addEventListener("dragover", (event) => {
+      if (!draggedId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      const { card, before } = dropTarget(event.clientX);
+      cards().forEach((c) => c.classList.remove("is-drop-before", "is-drop-after"));
+      card?.classList.add(before ? "is-drop-before" : "is-drop-after");
+    });
+
+    strip.addEventListener("drop", async (event) => {
+      if (!draggedId) return;
+      event.preventDefault();
+      const id = draggedId;
+      const { card, before, others } = dropTarget(event.clientX);
+      clearMarks();
+      draggedId = null;
+      if (!card) return;
+
+      const position = others.indexOf(card) + (before ? 0 : 1);
+      const number = (c) => {
+        const min = Number(c.dataset.initMin);
+        const max = Number(c.dataset.initMax);
+        return { min: Number.isFinite(min) && c.dataset.initMin !== "" ? min : null, max: Number.isFinite(max) && c.dataset.initMax !== "" ? max : null };
+      };
+      // Nearest rolled neighbour on each side (unrolled ones are skipped).
+      let above = null;
+      for (let k = position - 1; k >= 0 && above === null; k--) above = number(others[k]).min;
+      let below = null;
+      for (let k = position; k < others.length && below === null; k++) below = number(others[k]).max;
+
+      const value = this._initiativeBetween(above, below);
+      if (value === null) return;
+      if (value === undefined) {
+        ui.notifications?.info(
+          "Those two share the same initiative, so there's no number between them. Give one of them a different number first (double-click it)."
+        );
+        return;
+      }
+      const combatant = getActiveCombat()?.combatants.get(id);
+      if (combatant && combatant.initiative !== value) await combatant.update({ initiative: value });
+    });
+  }
+
+  /**
+   * A number that sorts between `above` (higher, earlier in the row) and
+   * `below` (lower, later). Returns null when there's nothing to compare
+   * against, and undefined when the neighbours are tied (no number fits).
+   */
+  _initiativeBetween(above, below) {
+    if (above === null && below === null) return null;
+    if (above === null) return Math.floor(below) + 1;
+    if (below === null) return Math.ceil(above) - 1;
+    if (above === below) return undefined;
+    if (above < below) return undefined;
+    const gap = above - below;
+    if (gap >= 2) return Math.floor((above + below) / 2);
+    return Math.round(((above + below) / 2) * 100) / 100;
+  }
+
+  /**
    * Right-click a portrait (GM only) for the things you otherwise have to
    * dig for: set or reroll initiative, mark defeated, hide, open the
    * sheet, remove from the fight. A small hand-built menu keeps it
@@ -820,6 +1012,24 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
 
     if (action === "end-turn") {
       await requestEndTurn(combatantId);
+      this.requestRender();
+      return;
+    }
+
+    if (action === "open-reminders") {
+      openRemindersPanel(event.currentTarget, () => getActiveCombat(), () => this.requestRender());
+      return;
+    }
+
+    if (action === "toggle-follow") {
+      const on = !game.settings.get(MODULE_ID, "followCamera");
+      await game.settings.set(MODULE_ID, "followCamera", on);
+      if (on) panToActive(combat, { force: true });
+      return;
+    }
+
+    if (action === "collapse-stack") {
+      this.expandedStacks.delete(combatantId);
       this.requestRender();
       return;
     }

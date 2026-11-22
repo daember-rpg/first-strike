@@ -2,6 +2,8 @@ import { FirstStrikeTracker, getActorHP } from "./tracker-app.js";
 import { MODULE_ID, getActiveCombat } from "./constants.js";
 import { ensureSocket, requestRollInitiative } from "./gm-actions.js";
 import { scheduleTurnAlert } from "./turn-alerts.js";
+import { scheduleCameraFollow } from "./camera.js";
+import { fireDueReminders } from "./reminders.js";
 
 let tracker;
 let autoSkipping = false;
@@ -65,6 +67,26 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true
+  });
+
+  game.settings.register(MODULE_ID, "followCamera", {
+    name: "Follow the turn with the camera",
+    hint: "Each time the turn changes, the map glides to whoever is acting. You can also switch this on and off with the camera button under the bar. Players are only taken to tokens they can see.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => renderTracker()
+  });
+
+  game.settings.register(MODULE_ID, "stackEnemies", {
+    name: "Group identical enemies",
+    hint: "Neighbouring enemies of the same kind (for example four goblins in a row) show as one portrait with a count. Click it to open the group. A group is always open while one of its members is acting. This only changes how the bar looks for you.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => renderTracker()
   });
 
   game.settings.register(MODULE_ID, "maskEnemyNames", {
@@ -137,6 +159,7 @@ Hooks.once("ready", async () => {
   try {
     for (const combat of Array.from(game.combats?.values?.() ?? [])) {
       lastActiveCombatantId.set(combat.id, combat.combatant?.id ?? null);
+      lastTurnState.set(combat.id, { round: combat.round, turn: combat.turn });
       rememberTopCombatant(combat);
     }
   } catch (err) {
@@ -160,7 +183,10 @@ Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
   // waits a beat before showing so a chain of auto-skips (defeated or
   // delaying combatants) settles on who actually acts, instead of
   // flashing a banner for each creature passed over.
-  if ("turn" in changed || "round" in changed) scheduleTurnAlert(combat);
+  if ("turn" in changed || "round" in changed) {
+    scheduleTurnAlert(combat);
+    scheduleCameraFollow(combat);
+  }
   // Record this on every client, not just the GM's - it's pure local
   // bookkeeping (no write), and it needs to stay current regardless of
   // who's logged in so the GM's client always has a true "who was
@@ -173,6 +199,7 @@ Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
     const previous = lastTurnState.get(combat.id) ?? { round: combat.round, turn: combat.turn };
     const current = { round: combat.round, turn: combat.turn };
     lastTurnState.set(combat.id, current);
+    if (current.round > previous.round && isActiveGM()) fireDueReminders(combat, previous.round, current.round);
     const direction = getTurnDirection(previous, current);
     await autoSkipCombatants(combat, direction);
   } else {
@@ -183,7 +210,10 @@ Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
   }
 });
 
-Hooks.on("createCombat", renderTracker);
+Hooks.on("createCombat", (combat) => {
+  renderTracker();
+  lastTurnState.set(combat.id, { round: combat.round, turn: combat.turn });
+});
 Hooks.on("deleteCombat", (combat) => {
   renderTracker();
   lastActiveCombatantId.delete(combat.id);

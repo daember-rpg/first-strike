@@ -109,3 +109,24 @@ embaixo, que ganha força quando o mouse chega perto.
   turno ter sido jogado** (rodada 1, turno ainda no primeiro da fila), o turno
   passa para quem ficou em primeiro. Depois que o jogo andou, mudar um número
   só reordena a fila: o turno continua com quem está agindo.
+
+## Novidades da 1.8
+
+- **Inimigos iguais agrupados:** inimigos vizinhos do mesmo tipo (por exemplo,
+  quatro goblins em sequência) viram um retrato só com um contador (×4). Clique
+  nele para abrir o grupo; o botão pequeno no primeiro retrato do grupo aberto
+  fecha de novo. O grupo fica sempre aberto enquanto um de seus membros estiver
+  agindo, para o turno ser exato. É uma preferência de cada pessoa
+  (Configurações → "Group identical enemies").
+- **Arrastar para reordenar (GM):** arraste um retrato para outro lugar da fila
+  e o número de iniciativa é calculado para ele ficar ali (no meio dos dois
+  vizinhos). Se os vizinhos tiverem o mesmo número, não existe número entre
+  eles e o módulo avisa para você dar um número diferente a um deles.
+- **Lembretes de round (GM):** o botão de sino na pílula de ferramentas abre um
+  painel para criar lembretes ("o efeito de lentidão termina") para daqui a N
+  rounds, uma vez ou repetindo a cada N rounds. Quando o round começa, o
+  lembrete aparece no chat (só para o GM, ou para todos se você marcar "Tell the
+  players") e como aviso na tela.
+- **Câmera que acompanha o turno:** o botão de câmera na pílula (ou a
+  configuração "Follow the turn with the camera") faz o mapa deslizar até quem
+  está agindo a cada turno. Jogadores só são levados a tokens que conseguem ver.

@@ -1,10 +1,14 @@
-<div class="fs-card fs-card--{{disposition}} {{#if isActive}}fs-card--active{{/if}} {{#if isNext}}fs-card--next{{/if}} {{#if isDefeated}}fs-card--defeated{{/if}} {{#if isHidden}}fs-card--hidden{{/if}} {{#if isDelayed}}fs-card--delayed{{/if}}"
+<div class="fs-card fs-card--{{disposition}} {{#if stackCount}}fs-card--stack{{/if}} {{#if isActive}}fs-card--active{{/if}} {{#if isNext}}fs-card--next{{/if}} {{#if isDefeated}}fs-card--defeated{{/if}} {{#if isHidden}}fs-card--hidden{{/if}} {{#if isDelayed}}fs-card--delayed{{/if}}"
      data-combatant-id="{{id}}"
+     data-init-min="{{initMin}}" data-init-max="{{initMax}}"
+     {{#if stackCount}}data-stack="{{stackCount}}" data-stack-ids="{{stackIds}}"{{/if}}
      role="listitem"
      {{#if isActive}}aria-current="true"{{/if}}
-     aria-label="{{name}}{{#if hasInitiative}}, initiative {{initiative}}{{/if}}{{#if isActive}}, current turn{{/if}}{{#if isNext}}, up next{{/if}}{{#if isDefeated}}, defeated{{/if}}{{#if isDelayed}}, delaying{{/if}}{{#if surprisedActive}}, surprised{{/if}}{{#if hpVisible}}, {{hp.value}} of {{hp.max}} hit points{{/if}}"
-     title="{{name}}{{#if hpVisible}} - {{hp.value}}/{{hp.max}} HP{{/if}}{{#if isNext}} (next){{/if}}">
+     aria-label="{{name}}{{#if stackCount}}, group of {{stackCount}}, press to expand{{/if}}{{#if hasInitiative}}, initiative {{initiative}}{{/if}}{{#if isActive}}, current turn{{/if}}{{#if isNext}}, up next{{/if}}{{#if isDefeated}}, defeated{{/if}}{{#if isDelayed}}, delaying{{/if}}{{#if surprisedActive}}, surprised{{/if}}{{#if hpVisible}}, {{hp.value}} of {{hp.max}} hit points{{/if}}"
+     title="{{name}}{{#if stackCount}} x{{stackCount}} - click to expand{{/if}}{{#if hpVisible}} - {{hp.value}}/{{hp.max}} HP{{/if}}{{#if isNext}} (next){{/if}}">
   {{#if isNext}}<span class="fs-card__next" aria-hidden="true"><i class="fa-solid fa-caret-down"></i></span>{{/if}}
+  {{#if stackCount}}<span class="fs-card__count" aria-hidden="true">&times;{{stackCount}}</span>{{/if}}
+  {{#if canCollapse}}<span class="fs-card__collapse" data-action="collapse-stack" data-combatant-id="{{id}}" title="Group identical enemies"><i class="fa-solid fa-layer-group"></i></span>{{/if}}
   <div class="fs-card__portrait" style="background-image: url('{{img}}');">
 
     {{#if surprisedActive}}
