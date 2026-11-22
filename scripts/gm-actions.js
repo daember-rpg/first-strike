@@ -80,10 +80,28 @@ function warnNoSocket() {
  * show up any other time.
  */
 function isExpectedPermissionNotice(message) {
-  return typeof message === "string" && /lacks permission/i.test(message);
+  // Foundry V14 can hand the notification an Error object instead of a
+  // plain string, so read the text from either shape.
+  const text = typeof message === "string" ? message : message?.message;
+  return typeof text === "string" && /lacks permission/i.test(text);
 }
 
-async function withSuppressedPermissionNotice(fn) {
+/**
+ * The patch stays on for a short grace period after the roll returns,
+ * because the rejected write (and the notice it triggers) can land a
+ * moment after pf2e's roll promise has already resolved. Overlapping
+ * rolls share one patch; the last one to finish starts the countdown.
+ */
+const SUPPRESS_GRACE_MS = 4000;
+let suppressDepth = 0;
+let suppressRestore = null;
+let suppressTimer = null;
+
+function installPermissionNoticeFilter() {
+  clearTimeout(suppressTimer);
+  suppressDepth++;
+  if (suppressRestore) return;
+
   const originalError = ui.notifications.error.bind(ui.notifications);
   const originalWarn = ui.notifications.warn.bind(ui.notifications);
 
@@ -102,11 +120,26 @@ async function withSuppressedPermissionNotice(fn) {
     return originalWarn(message, options);
   };
 
+  suppressRestore = () => {
+    ui.notifications.error = originalError;
+    ui.notifications.warn = originalWarn;
+    suppressRestore = null;
+  };
+}
+
+function releasePermissionNoticeFilter() {
+  suppressDepth = Math.max(0, suppressDepth - 1);
+  if (suppressDepth > 0) return;
+  clearTimeout(suppressTimer);
+  suppressTimer = setTimeout(() => suppressRestore?.(), SUPPRESS_GRACE_MS);
+}
+
+async function withSuppressedPermissionNotice(fn) {
+  installPermissionNoticeFilter();
   try {
     return await fn();
   } finally {
-    ui.notifications.error = originalError;
-    ui.notifications.warn = originalWarn;
+    releasePermissionNoticeFilter();
   }
 }
 
