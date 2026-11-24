@@ -1,6 +1,6 @@
 import { FirstStrikeTracker, getActorHP } from "./tracker-app.js";
 import { MODULE_ID, getActiveCombat } from "./constants.js";
-import { ensureSocket, requestRollInitiative } from "./gm-actions.js";
+import { ensureSocket, requestRollInitiative, requestEndTurn, requestDelayTurn } from "./gm-actions.js";
 import { scheduleTurnAlert } from "./turn-alerts.js";
 import { scheduleCameraFollow } from "./camera.js";
 import { fireDueReminders } from "./reminders.js";
@@ -69,6 +69,15 @@ Hooks.once("init", () => {
     default: true
   });
 
+  game.settings.register(MODULE_ID, "turnSound", {
+    name: "Play a sound on your turn",
+    hint: "A short chime when it becomes the turn of a character you control. Off by default.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
   game.settings.register(MODULE_ID, "followCamera", {
     name: "Follow the turn with the camera",
     hint: "Each time the turn changes, the map glides to whoever is acting. You can also switch this on and off with the camera button under the bar. Players are only taken to tokens they can see.",
@@ -105,6 +114,39 @@ Hooks.once("init", () => {
     restricted: true,
     onDown: () => {
       getActiveCombat()?.nextTurn();
+    }
+  });
+
+  // For whoever is acting - the player who owns the acting character, or
+  // the GM. Handy at the table: pass the turn without reaching for the mouse.
+  const actingCombatant = () => {
+    const combat = getActiveCombat();
+    const current = combat?.started ? combat.combatant : null;
+    if (!current || current.initiative == null) return null;
+    return game.user.isGM || current.actor?.isOwner ? current : null;
+  };
+
+  game.keybindings.register(MODULE_ID, "endMyTurn", {
+    name: "First Strike: End Turn (acting character)",
+    hint: "Ends the turn of the combatant who is acting, if you control it (the GM always can).",
+    editable: [{ key: "KeyN", modifiers: ["Shift"] }],
+    onDown: () => {
+      const current = actingCombatant();
+      if (!current) return false;
+      requestEndTurn(current.id);
+      return true;
+    }
+  });
+
+  game.keybindings.register(MODULE_ID, "delayMyTurn", {
+    name: "First Strike: Delay Turn (acting character)",
+    hint: "Delays the turn of the combatant who is acting, if you control it (the GM always can).",
+    editable: [{ key: "KeyD", modifiers: ["Shift"] }],
+    onDown: () => {
+      const current = actingCombatant();
+      if (!current) return false;
+      requestDelayTurn(current.id);
+      return true;
     }
   });
 

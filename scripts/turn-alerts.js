@@ -63,6 +63,7 @@ function announce(combat) {
     if (isMine(current)) {
       const info = getDisplayInfo(current);
       showBanner({ variant: "mine", label: "Your turn", name: info.name, img: info.img, glow: true });
+      playTurnSound();
       return;
     }
 
@@ -82,6 +83,17 @@ function announce(combat) {
   } catch (err) {
     // A cosmetic cue must never be able to break turn handling.
     console.error("First Strike | turn alert failed", err);
+  }
+}
+
+function playTurnSound() {
+  try {
+    if (!game.settings.get(MODULE_ID, "turnSound")) return;
+    const src = CONFIG.sounds?.notification;
+    if (!src) return;
+    foundry.audio.AudioHelper.play({ src, volume: 0.6, autoplay: true, loop: false }, false);
+  } catch (err) {
+    console.error("First Strike | couldn't play the turn sound", err);
   }
 }
 

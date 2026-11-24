@@ -498,6 +498,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
     });
 
     this._setupStrip();
+    this._setupTokenHover();
 
     if (game.user.isGM) {
       this.element.querySelectorAll(".fs-card").forEach((card) => {
@@ -731,6 +732,73 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   /**
+   * Hovering a portrait lights up its token(s) on the map, the same
+   * highlight you get from pointing at the token itself, so "who is that?"
+   * is answered without hunting across the canvas. Players only get this
+   * for tokens they can see.
+   */
+  _setupTokenHover() {
+    this._clearTokenHover();
+    this.element.querySelectorAll(".fs-card").forEach((card) => {
+      const ids = (card.dataset.stackIds ?? card.dataset.combatantId).split(",");
+      card.addEventListener("pointerenter", () => {
+        const combat = getActiveCombat();
+        for (const id of ids) {
+          const token = combat?.combatants.get(id)?.token?.object;
+          if (!token || (!game.user.isGM && !token.visible)) continue;
+          try {
+            token._onHoverIn(new PointerEvent("pointerover"), { hoverOutOthers: false });
+            (this._hoveredTokens ??= new Set()).add(token);
+          } catch (err) {
+            console.debug("First Strike | couldn't highlight token", err);
+          }
+        }
+      });
+      card.addEventListener("pointerleave", () => this._clearTokenHover());
+    });
+  }
+
+  _clearTokenHover() {
+    for (const token of this._hoveredTokens ?? []) {
+      try {
+        token._onHoverOut(new PointerEvent("pointerout"));
+      } catch (err) {
+        console.debug("First Strike | couldn't clear token highlight", err);
+      }
+    }
+    this._hoveredTokens?.clear();
+  }
+
+  /**
+   * GM: puts the tokens currently selected on the map into the running
+   * encounter (reinforcements, a summoned creature). Anything already in
+   * the fight is left alone. Enemies get their initiative rolled by the
+   * auto-roll setting like any other newcomer.
+   */
+  async _addSelectedTokens(combat) {
+    const tokens = canvas.tokens?.controlled ?? [];
+    if (!tokens.length) {
+      ui.notifications.warn("Select the tokens you want to add on the map first.");
+      return;
+    }
+    const fresh = tokens.filter((t) => !combat.combatants.some((c) => c.tokenId === t.id));
+    if (!fresh.length) {
+      ui.notifications.info("Those tokens are already in the encounter.");
+      return;
+    }
+    await combat.createEmbeddedDocuments(
+      "Combatant",
+      fresh.map((t) => ({
+        tokenId: t.id,
+        sceneId: t.document.parent?.id ?? canvas.scene.id,
+        actorId: t.document.actorId,
+        hidden: t.document.hidden
+      }))
+    );
+    ui.notifications.info(`Added ${fresh.length} to the encounter.`);
+  }
+
+  /**
    * Right-click a portrait (GM only) for the things you otherwise have to
    * dig for: set or reroll initiative, mark defeated, hide, open the
    * sheet, remove from the fight. A small hand-built menu keeps it
@@ -926,6 +994,11 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       const on = !game.settings.get(MODULE_ID, "followCamera");
       await game.settings.set(MODULE_ID, "followCamera", on);
       if (on) panToActive(combat, { force: true });
+      return;
+    }
+
+    if (action === "add-selected") {
+      if (combat) await this._addSelectedTokens(combat);
       return;
     }
 

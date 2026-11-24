@@ -126,3 +126,18 @@ embaixo, que ganha força quando o mouse chega perto.
 - **Câmera que acompanha o turno:** o botão de câmera na pílula (ou a
   configuração "Follow the turn with the camera") faz o mapa deslizar até quem
   está agindo a cada turno. Jogadores só são levados a tokens que conseguem ver.
+
+## Novidades da 1.9
+
+- **Destaque no mapa:** passe o mouse num retrato e o token dele acende no mapa
+  (num grupo, acendem todos). Jogadores só veem isso para tokens que enxergam.
+- **Atalhos de teclado:** `Shift+N` encerra o turno e `Shift+D` adia o turno de
+  quem está agindo, para quem controla o personagem (o GM sempre pode). Dá para
+  trocar as teclas em Configurar Controles.
+- **Som na sua vez (opcional):** um sininho curto quando começa o turno de um
+  personagem seu. Fica desligado por padrão (Configurações → "Play a sound on
+  your turn").
+- **Adicionar tokens ao combate (GM):** selecione tokens no mapa e use o botão
+  de "adicionar pessoa" na pílula de ferramentas para colocá-los no combate em
+  andamento (reforços, invocações). Quem já está no combate é ignorado, e os
+  inimigos têm a iniciativa rolada pela configuração de rolagem automática.
