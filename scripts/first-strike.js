@@ -3,7 +3,7 @@ import { MODULE_ID, getActiveCombat } from "./constants.js";
 import { ensureSocket, requestRollInitiative, requestEndTurn, requestDelayTurn } from "./gm-actions.js";
 import { scheduleTurnAlert } from "./turn-alerts.js";
 import { scheduleCameraFollow } from "./camera.js";
-import { fireDueReminders } from "./reminders.js";
+import { fireDueReminders, warnEndingEffects } from "./reminders.js";
 
 let tracker;
 let autoSkipping = false;
@@ -67,6 +67,16 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true
+  });
+
+  game.settings.register(MODULE_ID, "effectWarnRounds", {
+    name: "Warn when effects are about to end",
+    hint: "At the start of each round, list the effects that have this many rounds or fewer left: effects on player characters in the chat for everyone, effects on everyone else for the GM only. 0 turns it off.",
+    scope: "world",
+    config: true,
+    type: Number,
+    range: { min: 0, max: 5, step: 1 },
+    default: 1
   });
 
   game.settings.register(MODULE_ID, "turnSound", {
@@ -241,7 +251,10 @@ Hooks.on("updateCombat", async (combat, changed, _options, _userId) => {
     const previous = lastTurnState.get(combat.id) ?? { round: combat.round, turn: combat.turn };
     const current = { round: combat.round, turn: combat.turn };
     lastTurnState.set(combat.id, current);
-    if (current.round > previous.round && isActiveGM()) fireDueReminders(combat, previous.round, current.round);
+    if (current.round > previous.round && isActiveGM()) {
+      fireDueReminders(combat, previous.round, current.round);
+      warnEndingEffects(combat);
+    }
     const direction = getTurnDirection(previous, current);
     await autoSkipCombatants(combat, direction);
   } else {

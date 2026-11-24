@@ -1,5 +1,5 @@
 import { MODULE_ID, getActiveCombat } from "./constants.js";
-import { getReminders, openRemindersPanel, closeRemindersPanel } from "./reminders.js";
+import { getReminders, getCountdowns, openRemindersPanel, closeRemindersPanel } from "./reminders.js";
 import { panToActive } from "./camera.js";
 import { requestRollInitiative, requestDelayTurn, requestActNow, requestEndTurn } from "./gm-actions.js";
 
@@ -344,6 +344,7 @@ export class FirstStrikeTracker extends HandlebarsApplicationMixin(ApplicationV2
       collapsed: this.collapsed,
       stripMode: this.isStrip,
       reminderCount: isGM ? getReminders(combat).length : 0,
+      countdowns: started ? getCountdowns(combat, isGM).slice(0, 4) : [],
       followCamera: game.settings.get(MODULE_ID, "followCamera")
     };
   }

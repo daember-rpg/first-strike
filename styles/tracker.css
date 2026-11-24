@@ -1579,3 +1579,54 @@ span.fs-control--end:hover {
 .first-strike-panel__add:hover {
   background: rgba(212, 178, 90, 0.3);
 }
+
+/* Countdowns: small pills under the tool pill, "ritual completes - 4". */
+.fs-countdowns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fs-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--fs-hair-2);
+  border-radius: 999px;
+  background: rgba(20, 17, 15, 0.6);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  color: var(--fs-ink);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.fs-countdown > i {
+  color: var(--fs-gold);
+  font-size: 11px;
+}
+
+.fs-countdown__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-countdown__left {
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--fs-gold);
+  color: #1a1410;
+  font-family: var(--fs-font-display);
+  font-size: 11px;
+  font-weight: 700;
+}

@@ -39,6 +39,11 @@
   {{/if}}
   <i class="fa-solid fa-video fs-control {{#if followCamera}}is-on{{/if}}" data-action="toggle-follow" aria-pressed="{{followCamera}}" title="Follow the turn with the camera"></i>
 </div>
+{{#if countdowns.length}}
+<div class="fs-countdowns" role="list" aria-label="Countdowns">
+  {{#each countdowns}}<span class="fs-countdown" role="listitem" title="{{text}} - {{left}} round(s) left"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i><span class="fs-countdown__text">{{text}}</span><span class="fs-countdown__left">{{left}}</span></span>{{/each}}
+</div>
+{{/if}}
 </div>
 {{else if isGM}}
 <div class="fs-panel fs-panel--setup">

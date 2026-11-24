@@ -28,6 +28,21 @@ export function isDueInRound(reminder, k) {
   return reminder.repeat > 0 && k > reminder.round && (k - reminder.round) % reminder.repeat === 0;
 }
 
+/** Rounds until a one-off reminder goes off (null for repeating ones). */
+export function roundsUntil(reminder, currentRound) {
+  if (reminder.repeat > 0) return null;
+  return reminder.round - currentRound;
+}
+
+/** What the tracker shows: pending one-off reminders, soonest first. */
+export function getCountdowns(combat, includeGMOnly) {
+  const round = combat?.round ?? 0;
+  return getReminders(combat)
+    .filter((r) => r.repeat === 0 && r.round > round && (includeGMOnly || r.tellPlayers))
+    .sort((a, b) => a.round - b.round)
+    .map((r) => ({ text: r.text, left: r.round - round }));
+}
+
 /**
  * Called by the active GM when the round counter moves forward. Fires
  * every reminder due in the rounds that just began (a skipped round still
@@ -55,6 +70,26 @@ export async function fireDueReminders(combat, fromRound, toRound) {
 
   const remaining = reminders.filter((r) => r.repeat > 0 || r.round > toRound);
   if (remaining.length !== reminders.length) await saveReminders(combat, remaining);
+
+  // Countdowns the players were told about tick down in the chat, one
+  // short line per round, so "the ritual completes in 5 rounds" falls
+  // 5, 4, 3... in front of everyone.
+  const ticking = remaining
+    .filter((r) => r.repeat === 0 && r.tellPlayers && r.round > toRound)
+    .sort((a, b) => a.round - b.round);
+  if (ticking.length) {
+    const items = ticking
+      .map((r) => `<li>${escapeHtml(r.text)} &mdash; <strong>${r.round - toRound}</strong> round${r.round - toRound === 1 ? "" : "s"} left</li>`)
+      .join("");
+    try {
+      await ChatMessage.create({
+        content: `<p><strong>Countdowns</strong></p><ul>${items}</ul>`,
+        speaker: { alias: "First Strike" }
+      });
+    } catch (err) {
+      console.error("First Strike | couldn't post the countdowns", err);
+    }
+  }
 }
 
 /* -------------------------------------------- */
@@ -68,7 +103,12 @@ export function closeRemindersPanel() {
   closePanel = null;
 }
 
-function describe(reminder) {
+function describe(reminder, currentRound = 0) {
+  if (reminder.repeat === 0) {
+    const left = reminder.round - currentRound;
+    const when = left > 0 ? ` (${left} round${left === 1 ? "" : "s"} left)` : "";
+    return `Round ${reminder.round}${when}`;
+  }
   if (reminder.repeat > 0) {
     return reminder.repeat === 1
       ? `Every round from round ${reminder.round}`
@@ -150,7 +190,7 @@ export function openRemindersPanel(anchor, getCombat, onChange) {
       const item = el("li", "first-strike-panel__item");
       const body = el("div", "first-strike-panel__body");
       body.append(el("span", "first-strike-panel__text", reminder.text));
-      body.append(el("span", "first-strike-panel__meta", `${describe(reminder)}${reminder.tellPlayers ? " - players see it" : " - GM only"}`));
+      body.append(el("span", "first-strike-panel__meta", `${describe(reminder, getCombat()?.round ?? 0)}${reminder.tellPlayers ? " - players see it" : " - GM only"}`));
       const remove = el("button", "first-strike-panel__remove");
       remove.type = "button";
       remove.setAttribute("aria-label", `Delete reminder: ${reminder.text}`);
@@ -218,4 +258,83 @@ export function openRemindersPanel(anchor, getCombat, onChange) {
     document.removeEventListener("pointerdown", onPointer, true);
     panel.remove();
   };
+}
+
+/* -------------------------------------------- */
+/* Effects that are about to run out              */
+/* -------------------------------------------- */
+
+const SECONDS_PER_ROUND = 6;
+
+/**
+ * Rounds left on an effect, or null when it has no end to speak of.
+ * PF2e effects report `remainingDuration` in seconds of game time
+ * (Infinity when unlimited or "until the end of the encounter"), and a
+ * round is 6 seconds. Core Foundry active effects are read as a fallback
+ * for other systems.
+ */
+function roundsLeft(effect) {
+  try {
+    const pf2e = effect.remainingDuration;
+    if (pf2e && typeof pf2e === "object") {
+      if (pf2e.expired || !Number.isFinite(pf2e.remaining)) return null;
+      return Math.ceil(pf2e.remaining / SECONDS_PER_ROUND);
+    }
+    const d = effect.duration;
+    if (d && !d.expired) {
+      if (Number.isFinite(d.secondsRemaining)) return Math.ceil(d.secondsRemaining / SECONDS_PER_ROUND);
+      if (d.units === "rounds" && Number.isFinite(d.remaining)) return Math.ceil(d.remaining);
+    }
+  } catch (err) {
+    console.debug("First Strike | couldn't read an effect's duration", err);
+  }
+  return null;
+}
+
+function effectsOf(actor) {
+  const items = actor.itemTypes?.effect ?? actor.items?.filter((i) => i.type === "effect") ?? [];
+  return [...items, ...(actor.effects?.contents ?? [])];
+}
+
+/**
+ * Looks at the effects on everyone in the fight and tells the table which
+ * ones are about to end. Effects on player characters go to the chat for
+ * everybody; effects on everyone else go to the GM alone, so a monster's
+ * timers never leak. Runs once per new round, on the active GM's client.
+ */
+export async function warnEndingEffects(combat) {
+  const threshold = Number(game.settings.get(MODULE_ID, "effectWarnRounds"));
+  if (!combat || !(threshold > 0)) return;
+
+  const party = [];
+  const others = [];
+  for (const combatant of combat.combatants) {
+    const actor = combatant.actor;
+    if (!actor) continue;
+    const bucket = combatant.hasPlayerOwner ? party : others;
+    for (const effect of effectsOf(actor)) {
+      const left = roundsLeft(effect);
+      if (left === null || left < 1 || left > threshold) continue;
+      bucket.push({ who: combatant.name, name: effect.name ?? effect.label ?? "Effect", left });
+    }
+  }
+
+  const post = async (entries, title, whisper) => {
+    if (!entries.length) return;
+    const items = entries
+      .map((e) => `<li>${escapeHtml(e.who)}: ${escapeHtml(e.name)} &mdash; <strong>${e.left}</strong> round${e.left === 1 ? "" : "s"} left</li>`)
+      .join("");
+    try {
+      await ChatMessage.create({
+        content: `<p><strong>${title}</strong></p><ul>${items}</ul>`,
+        speaker: { alias: "First Strike" },
+        whisper
+      });
+    } catch (err) {
+      console.error("First Strike | couldn't post the ending-effects warning", err);
+    }
+  };
+
+  await post(party, "Effects ending soon", []);
+  await post(others, "Effects ending soon (GM only)", ChatMessage.getWhisperRecipients("GM").map((u) => u.id));
 }

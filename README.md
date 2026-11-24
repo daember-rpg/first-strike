@@ -141,3 +141,18 @@ embaixo, que ganha força quando o mouse chega perto.
   de "adicionar pessoa" na pílula de ferramentas para colocá-los no combate em
   andamento (reforços, invocações). Quem já está no combate é ignorado, e os
   inimigos têm a iniciativa rolada pela configuração de rolagem automática.
+
+## Novidades da 1.10
+
+- **Contagem regressiva dos lembretes:** um lembrete como "Ritual completo" em
+  5 rounds agora mostra quantos rounds faltam (painel do sino e pílulas embaixo
+  da barra, tipo "Ritual completo · 4"), e vai caindo a cada round. Se o
+  lembrete estiver marcado "Tell the players", uma linha "Countdowns" também
+  aparece no chat a cada round para todos verem o número cair. Quando chega a
+  zero, o lembrete dispara normalmente.
+- **Aviso de efeitos acabando (automático):** no começo de cada round o módulo
+  olha os efeitos de todos no combate e avisa os que estão para acabar
+  (configuração "Warn when effects are about to end", padrão: 1 round ou menos;
+  0 desliga). Efeitos de personagens de jogadores vão para o chat de todos, em
+  uma mensagem separada; efeitos de monstros e NPCs vão só para o GM. Efeitos
+  sem duração ou "até o fim do encontro" são ignorados.
